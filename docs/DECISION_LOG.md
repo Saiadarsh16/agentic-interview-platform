@@ -176,6 +176,32 @@ Development may move more slowly than a fully autonomous build, but decisions wi
 
 ---
 
+## D-007 — Use Tailwind CSS v4
+
+- **Date:** 28 July 2026
+- **Status:** Accepted
+- **Decision:** Use Tailwind CSS v4 as the frontend styling foundation, integrated through its official Vite plugin.
+
+### Context
+
+The Warm Editorial Coach direction needs a consistent way to apply spacing, colour, typography, responsive behaviour, and interaction states across the landing page, interview setup, live interview, feedback, and dashboard experiences. The styling approach must work naturally with the existing React, TypeScript, and Vite frontend.
+
+### Why this was chosen
+
+Tailwind CSS v4 provides a utility-first styling system that supports rapid interface development while keeping design decisions consistent. Its official Vite plugin fits the selected frontend toolchain directly, and its CSS-first configuration keeps the initial setup small. Version 4 was selected over version 3 because this project is starting fresh and does not need compatibility with legacy Tailwind configuration.
+
+### Alternatives considered
+
+- **Tailwind CSS v3:** Mature and supported by many existing tutorials, but uses an older configuration and integration approach that would add legacy setup to a new project.
+- **CSS Modules:** Provides strong component-level isolation, but requires more custom CSS and shared conventions to maintain a consistent design system.
+- **Plain structured CSS:** Has no additional framework dependency, but would require more manual naming, reuse, responsive styling, and design-token discipline as the application grows.
+
+### Consequences and trade-offs
+
+Components can become difficult to read if long utility-class strings are repeated. Shared visual patterns should therefore be extracted into reusable React components, while global design tokens should remain deliberate and limited. Selecting Tailwind does not decide the final colour palette, typography, component library, or page layouts; those remain separate collaborative decisions.
+
+---
+
 ## Approved direction not yet implemented
 
 The following choices have been agreed at the product level but will receive their own detailed entries when their implementation is planned:
@@ -193,4 +219,4 @@ The following choices have been agreed at the product level but will receive the
 
 ## Next decision
 
-The next frontend decision should define the styling system and component foundation. No styling library has been selected yet.
+The next frontend decision should define the component strategy: whether to build accessible components in-house, adopt a headless component foundation, or use a pre-styled UI library.
