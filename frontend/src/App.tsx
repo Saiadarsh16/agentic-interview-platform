@@ -5,9 +5,10 @@ import {
   Outlet,
   Route,
   Routes,
+  useNavigate,
   useParams,
 } from 'react-router-dom'
-import { useState } from 'react'
+import { useMemo, useState, type FormEvent } from 'react'
 import './App.css'
 import {
   Badge,
@@ -436,13 +437,103 @@ function LandingPage() {
 }
 
 function NewInterviewPage() {
+  const navigate = useNavigate()
+  const [step, setStep] = useState(1)
+  const [company, setCompany] = useState('')
+  const [role, setRole] = useState('')
+  const [round, setRound] = useState('technical')
+  const [duration, setDuration] = useState('45')
+  const [context, setContext] = useState('')
+  const [mode, setMode] = useState('text')
+  const [difficulty, setDifficulty] = useState('adaptive')
+  const [focusAreas, setFocusAreas] = useState<string[]>([
+    'Technical depth',
+    'Production thinking',
+  ])
   const [resume, setResume] = useState<File | null>(null)
   const [jobDescription, setJobDescription] = useState<File | null>(null)
   const [isPreparing, setIsPreparing] = useState(false)
+  const [errors, setErrors] = useState<Record<string, string>>({})
+
+  const steps = ['Context', 'Preferences', 'Review']
+  const progress = Math.round((step / steps.length) * 100)
+
+  const roundLabel = useMemo(
+    () =>
+      ({
+        recruiter: 'Recruiter screen',
+        technical: 'Technical interview',
+        'system-design': 'System design',
+        behavioural: 'Behavioural interview',
+      })[round] ?? round,
+    [round],
+  )
+
+  const validateFile = (
+    file: File | null,
+    field: string,
+    extensions: string[],
+  ) => {
+    if (!file) return `${field} is required.`
+    if (file.size > 10 * 1024 * 1024) return `${field} must be smaller than 10 MB.`
+    const extension = file.name.split('.').pop()?.toLowerCase() ?? ''
+    if (!extensions.includes(extension)) {
+      return `${field} must be a ${extensions.map((item) => item.toUpperCase()).join(', ')} file.`
+    }
+    return ''
+  }
+
+  const validateContext = () => {
+    const nextErrors: Record<string, string> = {}
+    if (!role.trim()) nextErrors.role = 'Enter the role you are preparing for.'
+    const resumeError = validateFile(resume, 'Resume', ['pdf', 'doc', 'docx'])
+    const jdError = validateFile(jobDescription, 'Job description', [
+      'pdf',
+      'doc',
+      'docx',
+      'txt',
+    ])
+    if (resumeError) nextErrors.resume = resumeError
+    if (jdError) nextErrors.jobDescription = jdError
+    setErrors(nextErrors)
+    return Object.keys(nextErrors).length === 0
+  }
+
+  const handleContextSubmit = (event: FormEvent) => {
+    event.preventDefault()
+    if (validateContext()) {
+      setErrors({})
+      setStep(2)
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+  }
+
+  const toggleFocusArea = (area: string) => {
+    setFocusAreas((current) =>
+      current.includes(area)
+        ? current.filter((item) => item !== area)
+        : [...current, area],
+    )
+  }
+
+  const handlePreferencesSubmit = (event: FormEvent) => {
+    event.preventDefault()
+    if (focusAreas.length === 0) {
+      setErrors({ focusAreas: 'Select at least one coaching focus.' })
+      return
+    }
+    setErrors({})
+    setStep(3)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
 
   const handlePrepare = () => {
     setIsPreparing(true)
-    window.setTimeout(() => setIsPreparing(false), 1400)
+    window.setTimeout(() => {
+      navigate(`/interviews/interview-${Date.now()}/live`, {
+        state: { company, role, round, duration, mode, difficulty, focusAreas },
+      })
+    }, 1400)
   }
 
   return (
@@ -459,17 +550,50 @@ function NewInterviewPage() {
           </p>
         </header>
 
+        <div className="mb-8 grid grid-cols-3 gap-2" aria-label="Setup steps">
+          {steps.map((label, index) => {
+            const number = index + 1
+            const active = number === step
+            const complete = number < step
+            return (
+              <button
+                key={label}
+                type="button"
+                onClick={() => complete && setStep(number)}
+                disabled={!complete}
+                aria-current={active ? 'step' : undefined}
+                className={`rounded-xl border px-3 py-3 text-left transition-colors ${
+                  active
+                    ? 'border-orange-300 bg-orange-50'
+                    : complete
+                      ? 'border-emerald-200 bg-emerald-50'
+                      : 'border-stone-200 bg-white'
+                }`}
+              >
+                <span className="block text-xs font-semibold uppercase tracking-wider text-stone-500">
+                  Step {number}
+                </span>
+                <span className="mt-1 block text-sm font-semibold text-stone-900">
+                  {complete ? '✓ ' : ''}{label}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_18rem]">
-          <Card title="Interview details" description="Tell us what you are preparing for.">
+          {step === 1 && (
+          <Card title="Add your context" description="Tell us what you are preparing for and provide both source documents.">
+            <form onSubmit={handleContextSubmit} noValidate>
             <div className="grid gap-5 sm:grid-cols-2">
               <FormField id="company" label="Company" hint="Optional, but useful for company-specific context.">
-                <Input id="company" placeholder="e.g. Wells Fargo" />
+                <Input id="company" value={company} onChange={(event) => setCompany(event.target.value)} placeholder="e.g. Wells Fargo" />
               </FormField>
-              <FormField id="role" label="Target role" required>
-                <Input id="role" placeholder="e.g. Senior GenAI Engineer" required />
+              <FormField id="role" label="Target role" error={errors.role} required>
+                <Input id="role" value={role} onChange={(event) => setRole(event.target.value)} placeholder="e.g. Senior GenAI Engineer" required />
               </FormField>
               <FormField id="round" label="Interview round">
-                <Select id="round" defaultValue="technical">
+                <Select id="round" value={round} onChange={(event) => setRound(event.target.value)}>
                   <option value="recruiter">Recruiter screen</option>
                   <option value="technical">Technical interview</option>
                   <option value="system-design">System design</option>
@@ -477,7 +601,7 @@ function NewInterviewPage() {
                 </Select>
               </FormField>
               <FormField id="duration" label="Duration">
-                <Select id="duration" defaultValue="45">
+                <Select id="duration" value={duration} onChange={(event) => setDuration(event.target.value)}>
                   <option value="30">30 minutes</option>
                   <option value="45">45 minutes</option>
                   <option value="60">60 minutes</option>
@@ -486,31 +610,103 @@ function NewInterviewPage() {
             </div>
             <div className="mt-5">
               <FormField id="context" label="Anything the interviewer should know?" hint="Add previous-round feedback, priorities, or topics to avoid.">
-                <Textarea id="context" rows={4} placeholder="The previous round focused heavily on RAG. I want deeper questions on LangGraph and production evaluation." />
+                <Textarea id="context" value={context} onChange={(event) => setContext(event.target.value)} rows={4} placeholder="The previous round focused heavily on RAG. I want deeper questions on LangGraph and production evaluation." />
               </FormField>
             </div>
             <div className="mt-6 grid gap-4 sm:grid-cols-2">
-              <FileUpload id="resume" label="Resume" description="PDF or DOCX, up to 10 MB" accept=".pdf,.doc,.docx" file={resume} onFileChange={setResume} />
-              <FileUpload id="job-description" label="Job description" description="PDF, DOCX, or TXT" accept=".pdf,.doc,.docx,.txt" file={jobDescription} onFileChange={setJobDescription} />
+              <div><FileUpload id="resume" label="Resume" description="PDF or DOCX, up to 10 MB" accept=".pdf,.doc,.docx" file={resume} onFileChange={(file) => { setResume(file); setErrors((current) => ({ ...current, resume: '' })) }} />{errors.resume && <p className="mt-1.5 text-xs text-red-700">{errors.resume}</p>}</div>
+              <div><FileUpload id="job-description" label="Job description" description="PDF, DOCX, or TXT, up to 10 MB" accept=".pdf,.doc,.docx,.txt" file={jobDescription} onFileChange={(file) => { setJobDescription(file); setErrors((current) => ({ ...current, jobDescription: '' })) }} />{errors.jobDescription && <p className="mt-1.5 text-xs text-red-700">{errors.jobDescription}</p>}</div>
             </div>
             <div className="mt-8 flex flex-col-reverse gap-3 border-t border-stone-200 pt-6 sm:flex-row sm:justify-end">
-              <Button variant="ghost">Save for later</Button>
-              <Button loading={isPreparing} onClick={handlePrepare}>
-                {isPreparing ? 'Preparing interview' : 'Prepare interview'}
-              </Button>
+              <Button type="submit">Continue to preferences</Button>
             </div>
+            </form>
           </Card>
+          )}
+
+          {step === 2 && (
+            <Card title="Choose your interview style" description="Set the experience and the areas where you want the strongest coaching.">
+              <form onSubmit={handlePreferencesSubmit}>
+                <div className="grid gap-5 sm:grid-cols-2">
+                  <FormField id="mode" label="Response mode">
+                    <Select id="mode" value={mode} onChange={(event) => setMode(event.target.value)}>
+                      <option value="text">Text response</option>
+                      <option value="voice">Voice response</option>
+                      <option value="mixed">Mixed text and voice</option>
+                    </Select>
+                  </FormField>
+                  <FormField id="difficulty" label="Difficulty">
+                    <Select id="difficulty" value={difficulty} onChange={(event) => setDifficulty(event.target.value)}>
+                      <option value="supportive">Supportive</option>
+                      <option value="adaptive">Adaptive</option>
+                      <option value="challenging">Challenging</option>
+                    </Select>
+                  </FormField>
+                </div>
+                <fieldset className="mt-7">
+                  <legend className="text-sm font-medium text-stone-800">Coaching focus</legend>
+                  <p className="mt-1 text-xs text-stone-500">Choose one or more areas. The interviewer will still assess your complete answer.</p>
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                    {['Technical depth', 'Production thinking', 'Communication', 'System design', 'Behavioural stories', 'Leadership'].map((area) => (
+                      <label key={area} className={`flex cursor-pointer items-center gap-3 rounded-xl border p-4 text-sm font-medium ${focusAreas.includes(area) ? 'border-orange-300 bg-orange-50 text-orange-950' : 'border-stone-200 bg-white text-stone-700'}`}>
+                        <input type="checkbox" className="size-4 accent-orange-700" checked={focusAreas.includes(area)} onChange={() => toggleFocusArea(area)} />
+                        {area}
+                      </label>
+                    ))}
+                  </div>
+                  {errors.focusAreas && <p className="mt-2 text-xs text-red-700">{errors.focusAreas}</p>}
+                </fieldset>
+                <div className="mt-8 flex flex-col-reverse gap-3 border-t border-stone-200 pt-6 sm:flex-row sm:justify-between">
+                  <Button variant="ghost" onClick={() => setStep(1)}>Back</Button>
+                  <Button type="submit">Review interview plan</Button>
+                </div>
+              </form>
+            </Card>
+          )}
+
+          {step === 3 && (
+            <Card title="Your interview plan" description="Review the setup before the interviewer begins.">
+              <div className="grid gap-4 sm:grid-cols-2">
+                {[
+                  ['Target', company.trim() ? `${role} at ${company}` : role],
+                  ['Interview', `${roundLabel} · ${duration} minutes`],
+                  ['Experience', `${mode[0].toUpperCase() + mode.slice(1)} · ${difficulty}`],
+                  ['Sources', `${resume?.name} · ${jobDescription?.name}`],
+                ].map(([label, value]) => (
+                  <div key={label} className="rounded-xl border border-stone-200 bg-stone-50 p-4">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-stone-500">{label}</p>
+                    <p className="mt-1 break-words text-sm font-semibold text-stone-900">{value}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-6">
+                <p className="text-xs font-semibold uppercase tracking-wider text-stone-500">Coaching focus</p>
+                <div className="mt-3 flex flex-wrap gap-2">{focusAreas.map((area) => <Badge key={area} variant="accent">{area}</Badge>)}</div>
+              </div>
+              {context.trim() && (
+                <div className="mt-6 rounded-xl border border-stone-200 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-stone-500">Additional direction</p>
+                  <p className="mt-2 text-sm leading-6 text-stone-700">{context}</p>
+                </div>
+              )}
+              <div className="mt-8 flex flex-col-reverse gap-3 border-t border-stone-200 pt-6 sm:flex-row sm:justify-between">
+                <Button variant="ghost" disabled={isPreparing} onClick={() => setStep(2)}>Back</Button>
+                <Button loading={isPreparing} onClick={handlePrepare}>{isPreparing ? 'Preparing your interview' : 'Start mock interview'}</Button>
+              </div>
+            </Card>
+          )}
+
           <aside className="space-y-6">
             <Card title="Preparation" compact>
-              <Progress value={35} label="Setup progress" />
+              <Progress value={progress} label="Setup progress" />
               <div className="mt-5 space-y-3 text-sm">
                 <div className="flex items-center justify-between">
-                  <span className="text-stone-600">Interview details</span>
-                  <Badge variant="success">Ready</Badge>
+                  <span className="text-stone-600">Context</span>
+                  <Badge variant={step > 1 ? 'success' : 'warning'}>{step > 1 ? 'Ready' : 'In progress'}</Badge>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-stone-600">Source documents</span>
-                  <Badge>Pending</Badge>
+                  <span className="text-stone-600">Preferences</span>
+                  <Badge variant={step > 2 ? 'success' : step === 2 ? 'warning' : 'neutral'}>{step > 2 ? 'Ready' : step === 2 ? 'In progress' : 'Pending'}</Badge>
                 </div>
               </div>
             </Card>
@@ -525,7 +721,7 @@ function NewInterviewPage() {
                 </div>
               </Card>
             ) : (
-              <EmptyState title="No interview prepared yet" description="Complete the details to generate your personalised interview plan." />
+              <EmptyState title={step === 3 ? 'Ready to begin' : 'Building your interview'} description={step === 3 ? 'Your sources and preferences are ready. Start whenever you feel settled.' : 'Complete each step to generate your personalised interview plan.'} />
             )}
           </aside>
         </div>
