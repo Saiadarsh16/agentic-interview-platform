@@ -743,23 +743,6 @@ function NewInterviewPage() {
   )
 }
 
-function PlaceholderPage({ title, description }: { title: string; description: string }) {
-  const { interviewId } = useParams()
-  return (
-    <main className="page-shell py-16">
-      <Badge variant="accent">Platform route</Badge>
-      <h1 className="mt-4 font-serif text-4xl font-semibold text-stone-950">{title}</h1>
-      <p className="mt-3 max-w-xl text-base leading-7 text-stone-600">{description}</p>
-      {interviewId && (
-        <p className="mt-4 text-sm text-stone-500">Interview ID: {interviewId}</p>
-      )}
-      <Link className="button-link button-link-secondary mt-8" to="/">
-        Return home
-      </Link>
-    </main>
-  )
-}
-
 const dashboardSessions = [
   {
     id: 'session-genai-04',
@@ -1929,6 +1912,375 @@ function FeedbackReportPage() {
   )
 }
 
+type SettingsState = {
+  name: string
+  email: string
+  targetRole: string
+  defaultMode: string
+  defaultDifficulty: string
+  defaultDuration: string
+  coachingStyle: string
+  showFrameworks: boolean
+  reduceMotion: boolean
+  largerText: boolean
+  practiceReminders: boolean
+  weeklySummary: boolean
+}
+
+const defaultSettings: SettingsState = {
+  name: 'Sai Adarsh Malla',
+  email: 'sai.adarsh@example.com',
+  targetRole: 'Senior Generative AI Engineer',
+  defaultMode: 'text',
+  defaultDifficulty: 'adaptive',
+  defaultDuration: '30',
+  coachingStyle: 'balanced',
+  showFrameworks: true,
+  reduceMotion: false,
+  largerText: false,
+  practiceReminders: true,
+  weeklySummary: true,
+}
+
+function SettingsToggle({
+  checked,
+  onChange,
+  label,
+  description,
+}: {
+  checked: boolean
+  onChange: (checked: boolean) => void
+  label: string
+  description: string
+}) {
+  return (
+    <label className="flex cursor-pointer items-start justify-between gap-5 border-b border-stone-200 py-5 last:border-0">
+      <span>
+        <span className="block text-sm font-semibold text-stone-950">{label}</span>
+        <span className="mt-1 block max-w-xl text-sm leading-6 text-stone-500">
+          {description}
+        </span>
+      </span>
+      <input
+        type="checkbox"
+        className="peer sr-only"
+        checked={checked}
+        onChange={(event) => onChange(event.target.checked)}
+      />
+      <span
+        aria-hidden="true"
+        className="relative mt-0.5 h-6 w-11 shrink-0 rounded-full bg-stone-300 transition-colors peer-checked:bg-orange-700 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-orange-700"
+      >
+        <span className="absolute left-1 top-1 size-4 rounded-full bg-white shadow-sm transition-transform peer-checked:translate-x-5" />
+      </span>
+    </label>
+  )
+}
+
+function SettingsPage() {
+  const [settings, setSettings] = useState<SettingsState>(() => {
+    try {
+      const saved = window.localStorage.getItem('agentic-interview-settings')
+      return saved
+        ? { ...defaultSettings, ...(JSON.parse(saved) as Partial<SettingsState>) }
+        : defaultSettings
+    } catch {
+      return defaultSettings
+    }
+  })
+  const [savedSettings, setSavedSettings] = useState(settings)
+  const [status, setStatus] = useState<'idle' | 'saving' | 'saved'>('idle')
+  const hasChanges = JSON.stringify(settings) !== JSON.stringify(savedSettings)
+
+  function updateSetting<K extends keyof SettingsState>(
+    key: K,
+    value: SettingsState[K],
+  ) {
+    setSettings((current) => ({ ...current, [key]: value }))
+    setStatus('idle')
+  }
+
+  function saveSettings(event: FormEvent) {
+    event.preventDefault()
+    setStatus('saving')
+    window.setTimeout(() => {
+      window.localStorage.setItem(
+        'agentic-interview-settings',
+        JSON.stringify(settings),
+      )
+      setSavedSettings(settings)
+      setStatus('saved')
+    }, 450)
+  }
+
+  function resetSettings() {
+    setSettings(defaultSettings)
+    setStatus('idle')
+  }
+
+  return (
+    <main className={settings.largerText ? 'text-[1.075rem]' : undefined}>
+      <section className="border-b border-stone-200 bg-white">
+        <div className="page-shell py-10 sm:py-14">
+          <div className="flex flex-col justify-between gap-6 sm:flex-row sm:items-end">
+            <div>
+              <p className="eyebrow">Your workspace</p>
+              <h1 className="mt-2 font-serif text-4xl font-semibold tracking-tight text-stone-950 sm:text-5xl">
+                Settings
+              </h1>
+              <p className="mt-3 max-w-2xl leading-7 text-stone-600">
+                Shape how your interviews feel, what your coach prioritises and
+                which practice updates you receive.
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <Button variant="outline" onClick={resetSettings} disabled={!hasChanges}>
+                Reset changes
+              </Button>
+              <Button
+                type="submit"
+                form="settings-form"
+                loading={status === 'saving'}
+                disabled={!hasChanges && status !== 'saving'}
+              >
+                Save settings
+              </Button>
+            </div>
+          </div>
+          <div aria-live="polite" className="mt-4 min-h-6">
+            {status === 'saved' && (
+              <p className="text-sm font-medium text-emerald-700">
+                ✓ Your preferences have been saved on this device.
+              </p>
+            )}
+          </div>
+        </div>
+      </section>
+
+      <form
+        id="settings-form"
+        onSubmit={saveSettings}
+        className="page-shell grid gap-8 py-8 sm:py-12 lg:grid-cols-[14rem_minmax(0,1fr)]"
+      >
+        <aside>
+          <nav
+            aria-label="Settings sections"
+            className="sticky top-24 flex gap-2 overflow-x-auto rounded-xl border border-stone-200 bg-white p-2 lg:flex-col"
+          >
+            {[
+              ['profile', 'Profile'],
+              ['interview', 'Interview defaults'],
+              ['coaching', 'Coaching'],
+              ['accessibility', 'Accessibility'],
+              ['notifications', 'Notifications'],
+              ['privacy', 'Privacy & data'],
+            ].map(([id, label]) => (
+              <a
+                key={id}
+                href={`#${id}`}
+                className="whitespace-nowrap rounded-lg px-3 py-2.5 text-sm font-medium text-stone-600 hover:bg-stone-100 hover:text-stone-950 focus-visible:outline-2 focus-visible:outline-orange-700"
+              >
+                {label}
+              </a>
+            ))}
+          </nav>
+        </aside>
+
+        <div className="min-w-0 space-y-6">
+          <Card
+            id="profile"
+            className="scroll-mt-28"
+            title="Profile"
+            description="Used to personalise your workspace and interview introductions."
+          >
+            <div className="grid gap-5 sm:grid-cols-2">
+              <FormField id="settings-name" label="Full name">
+                <Input
+                  id="settings-name"
+                  value={settings.name}
+                  onChange={(event) => updateSetting('name', event.target.value)}
+                />
+              </FormField>
+              <FormField
+                label="Email address"
+                id="settings-email"
+                hint="Account sign-in will be connected with the backend later."
+              >
+                <Input
+                  id="settings-email"
+                  type="email"
+                  value={settings.email}
+                  onChange={(event) => updateSetting('email', event.target.value)}
+                />
+              </FormField>
+              <div className="sm:col-span-2">
+                <FormField id="settings-role" label="Primary target role">
+                  <Input
+                    id="settings-role"
+                    value={settings.targetRole}
+                    onChange={(event) => updateSetting('targetRole', event.target.value)}
+                  />
+                </FormField>
+              </div>
+            </div>
+          </Card>
+
+          <Card
+            id="interview"
+            className="scroll-mt-28"
+            title="Interview defaults"
+            description="Pre-fill new interview setups while keeping every choice editable."
+          >
+            <div className="grid gap-5 sm:grid-cols-3">
+              <FormField id="settings-mode" label="Mode">
+                <Select
+                  id="settings-mode"
+                  value={settings.defaultMode}
+                  onChange={(event) => updateSetting('defaultMode', event.target.value)}
+                >
+                  <option value="text">Text interview</option>
+                  <option value="voice" disabled>Voice · Coming later</option>
+                  <option value="coding" disabled>Coding · Planned</option>
+                </Select>
+              </FormField>
+              <FormField id="settings-difficulty" label="Difficulty">
+                <Select
+                  id="settings-difficulty"
+                  value={settings.defaultDifficulty}
+                  onChange={(event) =>
+                    updateSetting('defaultDifficulty', event.target.value)
+                  }
+                >
+                  <option value="adaptive">Adaptive</option>
+                  <option value="foundational">Foundational</option>
+                  <option value="challenging">Challenging</option>
+                </Select>
+              </FormField>
+              <FormField id="settings-duration" label="Duration">
+                <Select
+                  id="settings-duration"
+                  value={settings.defaultDuration}
+                  onChange={(event) =>
+                    updateSetting('defaultDuration', event.target.value)
+                  }
+                >
+                  <option value="15">15 minutes</option>
+                  <option value="30">30 minutes</option>
+                  <option value="45">45 minutes</option>
+                  <option value="60">60 minutes</option>
+                </Select>
+              </FormField>
+            </div>
+          </Card>
+
+          <Card
+            id="coaching"
+            className="scroll-mt-28"
+            title="Coaching experience"
+            description="Choose how much guidance you want while practising."
+          >
+            <FormField id="settings-coaching" label="Feedback style">
+              <Select
+                id="settings-coaching"
+                value={settings.coachingStyle}
+                onChange={(event) =>
+                  updateSetting('coachingStyle', event.target.value)
+                }
+              >
+                <option value="supportive">Supportive · Encourage first</option>
+                <option value="balanced">Balanced · Direct and constructive</option>
+                <option value="challenging">Challenging · Interviewer-style pressure</option>
+              </Select>
+            </FormField>
+            <div className="mt-3">
+              <SettingsToggle
+                checked={settings.showFrameworks}
+                onChange={(checked) => updateSetting('showFrameworks', checked)}
+                label="Show answer frameworks"
+                description="Offer optional structure prompts such as STAR or Context → Decision → Result during practice."
+              />
+            </div>
+          </Card>
+
+          <Card
+            id="accessibility"
+            className="scroll-mt-28"
+            title="Accessibility"
+            description="Adjust the practice environment for more comfortable use."
+          >
+            <SettingsToggle
+              checked={settings.reduceMotion}
+              onChange={(checked) => updateSetting('reduceMotion', checked)}
+              label="Reduce motion"
+              description="Minimise decorative movement and non-essential transitions."
+            />
+            <SettingsToggle
+              checked={settings.largerText}
+              onChange={(checked) => updateSetting('largerText', checked)}
+              label="Larger interface text"
+              description="Increase the base text size across this settings experience."
+            />
+          </Card>
+
+          <Card
+            id="notifications"
+            className="scroll-mt-28"
+            title="Notifications"
+            description="These choices are ready for the future account service; no emails are sent yet."
+          >
+            <SettingsToggle
+              checked={settings.practiceReminders}
+              onChange={(checked) => updateSetting('practiceReminders', checked)}
+              label="Practice reminders"
+              description="Receive a gentle reminder when your planned practice window is approaching."
+            />
+            <SettingsToggle
+              checked={settings.weeklySummary}
+              onChange={(checked) => updateSetting('weeklySummary', checked)}
+              label="Weekly progress summary"
+              description="Get a short recap of completed sessions, readiness movement and the next priority."
+            />
+          </Card>
+
+          <Card
+            id="privacy"
+            className="scroll-mt-28"
+            title="Privacy & data"
+            description="Your documents and interview data will remain under your control."
+          >
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="rounded-xl border border-stone-200 bg-stone-50 p-5">
+                <p className="text-sm font-semibold text-stone-950">Saved documents</p>
+                <p className="mt-2 text-sm leading-6 text-stone-600">
+                  Resume and job-description storage will become available after
+                  secure backend persistence is connected.
+                </p>
+                <Button variant="outline" className="mt-5" disabled>
+                  Manage documents
+                </Button>
+              </div>
+              <div className="rounded-xl border border-red-200 bg-red-50/50 p-5">
+                <p className="text-sm font-semibold text-red-950">Delete practice data</p>
+                <p className="mt-2 text-sm leading-6 text-red-800">
+                  Permanent account-data controls will be enabled with authentication
+                  and backend storage.
+                </p>
+                <Button variant="danger" className="mt-5" disabled>
+                  Delete data
+                </Button>
+              </div>
+            </div>
+            <p className="mt-5 rounded-xl bg-amber-50 p-4 text-sm leading-6 text-amber-950">
+              For this frontend milestone, settings are stored only in this browser.
+              No profile, document or interview data is sent to a server.
+            </p>
+          </Card>
+        </div>
+      </form>
+    </main>
+  )
+}
+
 export default function App() {
   return (
     <Routes>
@@ -1939,7 +2291,7 @@ export default function App() {
         <Route path="interviews/:interviewId/live" element={<LiveInterviewPage />} />
         <Route path="interviews/:interviewId/feedback" element={<FeedbackReportPage />} />
         <Route path="history" element={<HistoryPage />} />
-        <Route path="settings" element={<PlaceholderPage title="Settings" description="Manage your profile, preferences, saved documents and privacy controls." />} />
+        <Route path="settings" element={<SettingsPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>
