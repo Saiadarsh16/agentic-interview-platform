@@ -1,5 +1,6 @@
 from fastapi.testclient import TestClient
 
+from app.api.routes import health
 from app.main import app
 
 client = TestClient(app)
@@ -17,14 +18,31 @@ def test_liveness() -> None:
     }
 
 
-def test_readiness() -> None:
+def test_readiness(monkeypatch) -> None:
+    async def available() -> bool:
+        return True
+
+    monkeypatch.setattr(health, "check_database", available)
+    monkeypatch.setattr(health, "check_redis", available)
     response = client.get("/api/v1/health/ready")
 
     assert response.status_code == 200
     assert response.json() == {
         "status": "ready",
-        "checks": {"api": "ok"},
+        "checks": {"api": "ok", "database": "ok", "redis": "ok"},
     }
+
+
+def test_readiness_reports_dependency_failure(monkeypatch) -> None:
+    async def unavailable() -> bool:
+        return False
+
+    monkeypatch.setattr(health, "check_database", unavailable)
+    monkeypatch.setattr(health, "check_redis", unavailable)
+    response = client.get("/api/v1/health/ready")
+
+    assert response.status_code == 503
+    assert response.json()["status"] == "not_ready"
 
 
 def test_openapi_is_available_outside_production() -> None:

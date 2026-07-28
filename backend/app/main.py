@@ -7,12 +7,15 @@ from fastapi.responses import JSONResponse
 
 from app.api.router import api_router
 from app.core.config import get_settings
+from app.core.redis import close_redis
+from app.db.session import dispose_engine
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
-    """Own startup and shutdown hooks for future shared services."""
     yield
+    await close_redis()
+    await dispose_engine()
 
 
 def create_app() -> FastAPI:
