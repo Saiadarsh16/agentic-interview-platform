@@ -9,7 +9,13 @@ import {
   useNavigate,
   useParams,
 } from 'react-router-dom'
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type CSSProperties,
+  type FormEvent,
+} from 'react'
 import './App.css'
 import {
   Badge,
@@ -748,6 +754,263 @@ function PlaceholderPage({ title, description }: { title: string; description: s
   )
 }
 
+const dashboardSessions = [
+  {
+    id: 'session-genai-04',
+    role: 'Senior Generative AI Engineer',
+    company: 'Wells Fargo',
+    type: 'Technical interview',
+    date: '28 Jul',
+    score: 84,
+    duration: '38 min',
+    status: 'Completed',
+  },
+  {
+    id: 'session-agentic-03',
+    role: 'Agentic AI Lead',
+    company: 'Wealth Management',
+    type: 'System design',
+    date: '25 Jul',
+    score: 81,
+    duration: '44 min',
+    status: 'Completed',
+  },
+  {
+    id: 'session-behavioural-02',
+    role: 'Senior AI Engineer',
+    company: 'Enterprise platform',
+    type: 'Behavioural interview',
+    date: '22 Jul',
+    score: 76,
+    duration: '31 min',
+    status: 'Completed',
+  },
+] as const
+
+const readinessTrend = [
+  { label: '8 Jul', score: 68 },
+  { label: '13 Jul', score: 72 },
+  { label: '18 Jul', score: 75 },
+  { label: '22 Jul', score: 76 },
+  { label: '25 Jul', score: 81 },
+  { label: '28 Jul', score: 84 },
+] as const
+
+function DashboardPage() {
+  const [sessionFilter, setSessionFilter] = useState('All sessions')
+  const filteredSessions = dashboardSessions.filter(
+    (session) =>
+      sessionFilter === 'All sessions' || session.type === sessionFilter,
+  )
+
+  return (
+    <main className="min-h-[calc(100vh-4.5rem)] bg-stone-100/70">
+      <section className="border-b border-stone-200 bg-white">
+        <div className="page-shell flex flex-col gap-6 py-9 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <Badge variant="accent">Practice dashboard</Badge>
+            <h1 className="mt-4 font-serif text-4xl font-semibold tracking-tight text-stone-950 sm:text-5xl">
+              Good morning, Adarsh.
+            </h1>
+            <p className="mt-3 max-w-2xl text-base leading-7 text-stone-600">
+              Your technical depth is improving. Focus next on concise answer
+              structure and measurable outcomes.
+            </p>
+          </div>
+          <Link className="button-link button-link-primary" to="/interviews/new">
+            Start a new interview <span aria-hidden="true">→</span>
+          </Link>
+        </div>
+      </section>
+
+      <div className="page-shell space-y-8 py-8 sm:py-12">
+        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="Readiness summary">
+          {[
+            ['Overall readiness', '84', '+8 points', 'Since your first session'],
+            ['Practice sessions', '6', '3 this week', 'Across three interview types'],
+            ['Questions answered', '29', '86% complete', 'Average response: 148 words'],
+            ['Practice time', '3h 42m', '+1h 18m', 'During the past seven days'],
+          ].map(([label, value, change, note], index) => (
+            <Card key={label} compact>
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wider text-stone-500">
+                    {label}
+                  </p>
+                  <p className="mt-3 font-serif text-4xl font-semibold text-stone-950">
+                    {value}
+                    {index === 0 && <span className="text-lg text-stone-400">/100</span>}
+                  </p>
+                </div>
+                {index === 0 && (
+                  <span className="grid size-12 place-items-center rounded-full bg-emerald-100 text-sm font-bold text-emerald-800">
+                    84
+                  </span>
+                )}
+              </div>
+              <p className="mt-4 text-sm font-semibold text-emerald-700">{change}</p>
+              <p className="mt-1 text-xs leading-5 text-stone-500">{note}</p>
+            </Card>
+          ))}
+        </section>
+
+        <section className="grid gap-6 lg:grid-cols-[minmax(0,1.25fr)_minmax(18rem,0.75fr)]">
+          <Card
+            title="Readiness trend"
+            description="Illustrative scores from your six most recent practice sessions."
+          >
+            <div className="mt-2 flex h-64 items-end gap-2 border-b border-stone-200 sm:gap-4" aria-label="Readiness scores over time">
+              {readinessTrend.map((point, index) => (
+                <div key={point.label} className="flex h-full flex-1 flex-col justify-end">
+                  <div className="group relative flex flex-1 items-end justify-center">
+                    <span className="absolute bottom-[calc(var(--bar-height)+0.5rem)] text-xs font-semibold text-stone-600" style={{ '--bar-height': `${point.score}%` } as CSSProperties}>
+                      {point.score}
+                    </span>
+                    <div
+                      className={`w-full max-w-12 rounded-t-lg transition-colors ${
+                        index === readinessTrend.length - 1
+                          ? 'bg-orange-700'
+                          : 'bg-orange-200 group-hover:bg-orange-300'
+                      }`}
+                      style={{ height: `${point.score}%` }}
+                    />
+                  </div>
+                  <span className="py-3 text-center text-[0.68rem] font-medium text-stone-500 sm:text-xs">
+                    {point.label}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
+              <p className="text-sm leading-6 text-stone-600">
+                Readiness has increased by <strong className="text-stone-900">16 points</strong> across six sessions.
+              </p>
+              <Badge variant="success">Improving steadily</Badge>
+            </div>
+          </Card>
+
+          <Card title="Competency snapshot" description="Your latest practice signals.">
+            <div className="space-y-5">
+              {[
+                ['Technical depth', 88],
+                ['Role alignment', 85],
+                ['Communication', 82],
+                ['Answer structure', 76],
+              ].map(([label, score]) => (
+                <Progress key={label} value={Number(score)} label={`${label} · ${score}%`} />
+              ))}
+            </div>
+            <div className="mt-6 rounded-xl bg-orange-50 p-4">
+              <p className="text-xs font-bold uppercase tracking-wider text-orange-800">
+                Highest-leverage focus
+              </p>
+              <p className="mt-2 text-sm leading-6 text-orange-950">
+                Use Context → Decision → Execution → Result to keep strong
+                technical answers under two minutes.
+              </p>
+            </div>
+          </Card>
+        </section>
+
+        <section className="grid gap-6 xl:grid-cols-[minmax(0,1.3fr)_minmax(19rem,0.7fr)]">
+          <Card>
+            <div className="flex flex-col gap-4 border-b border-stone-200 pb-5 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="font-serif text-2xl font-semibold text-stone-950">Recent interviews</h2>
+                <p className="mt-1 text-sm text-stone-500">Review your latest sessions and feedback.</p>
+              </div>
+              <Select
+                aria-label="Filter recent interviews"
+                value={sessionFilter}
+                onChange={(event) => setSessionFilter(event.target.value)}
+                className="sm:w-52"
+              >
+                <option>All sessions</option>
+                <option>Technical interview</option>
+                <option>System design</option>
+                <option>Behavioural interview</option>
+              </Select>
+            </div>
+            <div className="divide-y divide-stone-200">
+              {filteredSessions.map((session) => (
+                <article key={session.id} className="grid gap-4 py-5 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+                  <div className="flex min-w-0 gap-4">
+                    <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-stone-100 font-serif text-lg font-semibold text-stone-700">
+                      {session.score}
+                    </span>
+                    <div className="min-w-0">
+                      <h3 className="truncate font-semibold text-stone-950">{session.role}</h3>
+                      <p className="mt-1 text-sm text-stone-500">
+                        {session.company} · {session.type}
+                      </p>
+                      <p className="mt-2 text-xs text-stone-400">
+                        {session.date} · {session.duration}
+                      </p>
+                    </div>
+                  </div>
+                  <Link
+                    className="text-sm font-semibold text-orange-800 underline decoration-orange-300 underline-offset-4"
+                    to={`/interviews/${session.id}/feedback`}
+                  >
+                    View feedback
+                  </Link>
+                </article>
+              ))}
+            </div>
+            <div className="border-t border-stone-200 pt-5">
+              <Link className="text-sm font-semibold text-stone-700" to="/history">
+                View complete history <span aria-hidden="true">→</span>
+              </Link>
+            </div>
+          </Card>
+
+          <div className="space-y-6">
+            <Card title="Recommended next" compact>
+              <Badge variant="warning">Priority practice</Badge>
+              <h3 className="mt-4 font-serif text-2xl font-semibold text-stone-950">
+                Production AI system design
+              </h3>
+              <p className="mt-3 text-sm leading-6 text-stone-600">
+                Practise explaining observability, failure recovery and
+                guardrails with clear architectural trade-offs.
+              </p>
+              <div className="mt-5 flex flex-wrap gap-2">
+                <Badge>20 minutes</Badge>
+                <Badge>Challenging</Badge>
+              </div>
+              <Link className="button-link button-link-primary mt-6 w-full" to="/interviews/new">
+                Start focused practice
+              </Link>
+            </Card>
+
+            <Card title="This week’s focus" compact>
+              <ol className="space-y-4 text-sm">
+                {[
+                  ['1', 'Add one metric to every project answer'],
+                  ['2', 'Complete one system-design session'],
+                  ['3', 'Revisit two skipped questions'],
+                ].map(([number, item]) => (
+                  <li key={item} className="flex gap-3">
+                    <span className="grid size-6 shrink-0 place-items-center rounded-full bg-stone-100 text-xs font-bold text-stone-600">
+                      {number}
+                    </span>
+                    <span className="leading-6 text-stone-700">{item}</span>
+                  </li>
+                ))}
+              </ol>
+            </Card>
+          </div>
+        </section>
+
+        <p className="text-center text-xs leading-5 text-stone-500">
+          Dashboard data is illustrative until account persistence and backend
+          evaluation are connected.
+        </p>
+      </div>
+    </main>
+  )
+}
+
 type InterviewContext = {
   company?: string
   role?: string
@@ -1309,7 +1572,7 @@ export default function App() {
     <Routes>
       <Route element={<AppLayout />}>
         <Route index element={<LandingPage />} />
-        <Route path="dashboard" element={<PlaceholderPage title="Dashboard" description="Your recent interviews, readiness trend and priority practice areas will live here." />} />
+        <Route path="dashboard" element={<DashboardPage />} />
         <Route path="interviews/new" element={<NewInterviewPage />} />
         <Route path="interviews/:interviewId/live" element={<LiveInterviewPage />} />
         <Route path="interviews/:interviewId/feedback" element={<FeedbackReportPage />} />
