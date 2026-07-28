@@ -31,12 +31,16 @@ const navItems = [
 
 function Logo() {
   return (
-    <Link to="/" className="flex items-center gap-2.5" aria-label="Atria home">
+    <Link
+      to="/"
+      className="flex items-center gap-2.5"
+      aria-label="Agentic Interview Platform home"
+    >
       <span className="grid size-9 place-items-center rounded-xl bg-orange-700 text-sm font-bold text-white shadow-sm">
-        A
+        AI
       </span>
       <span className="font-serif text-xl font-semibold tracking-tight text-stone-950">
-        Atria
+        Agentic Interview
       </span>
     </Link>
   )
@@ -197,7 +201,7 @@ function LandingPage() {
                 Practise the interview that’s actually waiting for you.
               </h1>
               <p className="mt-6 max-w-xl text-lg leading-8 text-stone-600">
-                Atria studies your resume and target role, then runs an adaptive
+                The platform studies your resume and target role, then runs an adaptive
                 mock interview that challenges your thinking and turns every
                 answer into a clear improvement plan.
               </p>
@@ -364,7 +368,7 @@ function LandingPage() {
               <p className="eyebrow">Why it works</p>
               <h2 className="section-title">Feedback you can defend—and use.</h2>
               <p className="section-copy">
-                Atria does not hide your performance behind one vague score. It
+                The platform does not hide your performance behind one vague score. It
                 connects every recommendation to the interview evidence that
                 produced it.
               </p>
