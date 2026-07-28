@@ -5,10 +5,11 @@ import {
   Outlet,
   Route,
   Routes,
+  useLocation,
   useNavigate,
   useParams,
 } from 'react-router-dom'
-import { useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import './App.css'
 import {
   Badge,
@@ -747,6 +748,345 @@ function PlaceholderPage({ title, description }: { title: string; description: s
   )
 }
 
+type InterviewContext = {
+  company?: string
+  role?: string
+  round?: string
+  duration?: string
+  mode?: string
+  difficulty?: string
+  focusAreas?: string[]
+}
+
+const sampleQuestions = [
+  {
+    category: 'Architecture',
+    question:
+      'Walk me through an agentic AI system you designed. What made an agentic workflow necessary instead of a simpler deterministic pipeline?',
+    guidance: 'Explain the business need, orchestration, tools, state and measurable result.',
+  },
+  {
+    category: 'RAG & evaluation',
+    question:
+      'How would you evaluate a retrieval-augmented generation system before releasing it to production?',
+    guidance: 'Separate retrieval, generation, safety and production monitoring.',
+  },
+  {
+    category: 'Production thinking',
+    question:
+      'An agent is repeatedly calling an expensive tool without improving its answer. How would you diagnose and prevent that behaviour?',
+    guidance: 'Discuss observability, limits, state transitions and graceful fallback.',
+  },
+  {
+    category: 'System design',
+    question:
+      'Design a secure interview-coaching platform that personalises questions from a resume and job description.',
+    guidance: 'Cover data flow, privacy, model orchestration, storage and scaling.',
+  },
+  {
+    category: 'Behavioural',
+    question:
+      'Tell me about a technical decision you changed after receiving new evidence. What did you learn?',
+    guidance: 'Use a clear situation, decision, evidence, action and result.',
+  },
+]
+
+function formatTime(totalSeconds: number) {
+  const minutes = Math.floor(totalSeconds / 60)
+  const seconds = totalSeconds % 60
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+}
+
+function LiveInterviewPage() {
+  const { interviewId = 'practice-session' } = useParams()
+  const navigate = useNavigate()
+  const location = useLocation()
+  const context = (location.state ?? {}) as InterviewContext
+  const [questionIndex, setQuestionIndex] = useState(0)
+  const [answers, setAnswers] = useState<string[]>(() =>
+    Array(sampleQuestions.length).fill(''),
+  )
+  const [secondsElapsed, setSecondsElapsed] = useState(0)
+  const [isPaused, setIsPaused] = useState(false)
+  const [showCoachNote, setShowCoachNote] = useState(false)
+  const [statusMessage, setStatusMessage] = useState('')
+
+  const currentQuestion = sampleQuestions[questionIndex]
+  const answeredCount = answers.filter((answer) => answer.trim()).length
+  const role = context.role || 'Senior GenAI Engineer'
+  const company = context.company?.trim()
+  const totalMinutes = Number(context.duration) || 45
+
+  useEffect(() => {
+    if (isPaused) return
+    const timer = window.setInterval(
+      () => setSecondsElapsed((seconds) => seconds + 1),
+      1000,
+    )
+    return () => window.clearInterval(timer)
+  }, [isPaused])
+
+  const updateAnswer = (answer: string) => {
+    setAnswers((current) =>
+      current.map((value, index) => (index === questionIndex ? answer : value)),
+    )
+    setStatusMessage('')
+  }
+
+  const goToQuestion = (index: number) => {
+    setQuestionIndex(index)
+    setShowCoachNote(false)
+    setStatusMessage('')
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  const handleNext = () => {
+    if (!answers[questionIndex].trim()) {
+      setStatusMessage('Add an answer before continuing, or use Skip for now.')
+      return
+    }
+    if (questionIndex < sampleQuestions.length - 1) {
+      goToQuestion(questionIndex + 1)
+    } else {
+      navigate(`/interviews/${interviewId}/feedback`, {
+        state: { ...context, answers, elapsedSeconds: secondsElapsed },
+      })
+    }
+  }
+
+  const handleEndInterview = () => {
+    if (
+      window.confirm(
+        'End this practice interview and continue to your feedback summary?',
+      )
+    ) {
+      navigate(`/interviews/${interviewId}/feedback`, {
+        state: { ...context, answers, elapsedSeconds: secondsElapsed },
+      })
+    }
+  }
+
+  return (
+    <main className="min-h-[calc(100vh-4.5rem)] bg-stone-100/70">
+      <div className="border-b border-stone-200 bg-white">
+        <div className="page-shell flex flex-col gap-4 py-5 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="success">Live practice</Badge>
+              <span className="text-sm text-stone-500">
+                {context.round
+                  ? context.round.replace('-', ' ')
+                  : 'Technical interview'}
+              </span>
+            </div>
+            <h1 className="mt-2 font-serif text-2xl font-semibold text-stone-950">
+              {role}
+              {company ? ` at ${company}` : ''}
+            </h1>
+          </div>
+          <div className="flex items-center gap-3">
+            <div
+              className="rounded-xl border border-stone-200 bg-stone-50 px-4 py-2 text-center"
+              aria-label={`${formatTime(secondsElapsed)} elapsed`}
+            >
+              <p className="text-[0.65rem] font-bold uppercase tracking-widest text-stone-500">
+                Elapsed
+              </p>
+              <p className="font-mono text-lg font-semibold text-stone-900">
+                {formatTime(secondsElapsed)}
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              onClick={() => setIsPaused((paused) => !paused)}
+            >
+              {isPaused ? 'Resume' : 'Pause'}
+            </Button>
+            <Button variant="ghost" onClick={handleEndInterview}>
+              End interview
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      <div className="page-shell grid gap-6 py-8 lg:grid-cols-[minmax(0,1fr)_19rem]">
+        <section className="min-w-0">
+          {isPaused && (
+            <div
+              className="mb-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"
+              role="status"
+            >
+              <strong>Interview paused.</strong> Your answer is safe and the
+              timer has stopped.
+            </div>
+          )}
+
+          <Card>
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-stone-200 pb-5">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-orange-700">
+                  Question {questionIndex + 1} of {sampleQuestions.length}
+                </p>
+                <p className="mt-1 text-sm text-stone-500">
+                  {currentQuestion.category}
+                </p>
+              </div>
+              <Badge variant="accent">
+                {context.difficulty || 'Adaptive'} difficulty
+              </Badge>
+            </div>
+
+            <h2 className="mt-7 max-w-3xl font-serif text-3xl font-semibold leading-tight text-stone-950 sm:text-4xl">
+              {currentQuestion.question}
+            </h2>
+
+            <button
+              type="button"
+              className="mt-5 text-sm font-semibold text-orange-800 underline decoration-orange-300 underline-offset-4"
+              onClick={() => setShowCoachNote((visible) => !visible)}
+              aria-expanded={showCoachNote}
+            >
+              {showCoachNote ? 'Hide answer framework' : 'Need a thinking prompt?'}
+            </button>
+            {showCoachNote && (
+              <div className="mt-3 rounded-xl border border-orange-200 bg-orange-50 p-4 text-sm leading-6 text-orange-950">
+                {currentQuestion.guidance}
+              </div>
+            )}
+
+            <div className="mt-8">
+              <FormField
+                id="live-answer"
+                label="Your answer"
+                hint="Structure your reasoning clearly. You can revise this response before moving on."
+              >
+                <Textarea
+                  id="live-answer"
+                  rows={10}
+                  value={answers[questionIndex]}
+                  disabled={isPaused}
+                  onChange={(event) => updateAnswer(event.target.value)}
+                  placeholder="Start with the context and your decision, then explain the technical execution, trade-offs and measurable outcome..."
+                />
+              </FormField>
+              <div className="mt-2 flex items-center justify-between text-xs text-stone-500">
+                <span>{answers[questionIndex].trim().split(/\s+/).filter(Boolean).length} words</span>
+                <span>Draft saved in this session</span>
+              </div>
+              {statusMessage && (
+                <p className="mt-3 text-sm font-medium text-red-700" role="alert">
+                  {statusMessage}
+                </p>
+              )}
+            </div>
+
+            <div className="mt-7 flex flex-col-reverse gap-3 border-t border-stone-200 pt-6 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex gap-2">
+                <Button
+                  variant="ghost"
+                  disabled={questionIndex === 0}
+                  onClick={() => goToQuestion(questionIndex - 1)}
+                >
+                  Previous
+                </Button>
+                <Button
+                  variant="ghost"
+                  disabled={questionIndex === sampleQuestions.length - 1}
+                  onClick={() => goToQuestion(questionIndex + 1)}
+                >
+                  Skip for now
+                </Button>
+              </div>
+              <Button disabled={isPaused} onClick={handleNext}>
+                {questionIndex === sampleQuestions.length - 1
+                  ? 'Finish interview'
+                  : 'Submit & continue'}
+              </Button>
+            </div>
+          </Card>
+        </section>
+
+        <aside className="space-y-5">
+          <Card title="Interview progress" compact>
+            <Progress
+              value={Math.round(
+                ((questionIndex + 1) / sampleQuestions.length) * 100,
+              )}
+              label={`${answeredCount} of ${sampleQuestions.length} answered`}
+            />
+            <ol className="mt-5 space-y-2" aria-label="Interview questions">
+              {sampleQuestions.map((question, index) => {
+                const active = index === questionIndex
+                const answered = Boolean(answers[index].trim())
+                return (
+                  <li key={question.category}>
+                    <button
+                      type="button"
+                      onClick={() => goToQuestion(index)}
+                      className={`flex w-full items-center gap-3 rounded-xl border px-3 py-3 text-left text-sm transition-colors ${
+                        active
+                          ? 'border-orange-300 bg-orange-50 text-orange-950'
+                          : 'border-transparent text-stone-600 hover:border-stone-200 hover:bg-stone-50'
+                      }`}
+                      aria-current={active ? 'step' : undefined}
+                    >
+                      <span
+                        className={`grid size-7 shrink-0 place-items-center rounded-full text-xs font-bold ${
+                          answered
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : active
+                              ? 'bg-orange-700 text-white'
+                              : 'bg-stone-100 text-stone-500'
+                        }`}
+                      >
+                        {answered ? '✓' : index + 1}
+                      </span>
+                      <span className="line-clamp-2">{question.category}</span>
+                    </button>
+                  </li>
+                )
+              })}
+            </ol>
+          </Card>
+
+          <Card title="Session plan" compact>
+            <dl className="space-y-3 text-sm">
+              <div className="flex justify-between gap-3">
+                <dt className="text-stone-500">Planned time</dt>
+                <dd className="font-semibold text-stone-800">{totalMinutes} min</dd>
+              </div>
+              <div className="flex justify-between gap-3">
+                <dt className="text-stone-500">Response mode</dt>
+                <dd className="capitalize font-semibold text-stone-800">
+                  {context.mode || 'Text'}
+                </dd>
+              </div>
+            </dl>
+            {context.focusAreas && context.focusAreas.length > 0 && (
+              <div className="mt-5 border-t border-stone-200 pt-4">
+                <p className="text-xs font-bold uppercase tracking-wider text-stone-500">
+                  Coaching focus
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {context.focusAreas.map((area) => (
+                    <Badge key={area}>{area}</Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+          </Card>
+
+          <p className="px-1 text-xs leading-5 text-stone-500">
+            This milestone uses sample questions and keeps responses in your
+            browser session. Adaptive AI follow-ups, voice capture and server
+            persistence will be connected in a later backend milestone.
+          </p>
+        </aside>
+      </div>
+    </main>
+  )
+}
+
 export default function App() {
   return (
     <Routes>
@@ -754,7 +1094,7 @@ export default function App() {
         <Route index element={<LandingPage />} />
         <Route path="dashboard" element={<PlaceholderPage title="Dashboard" description="Your recent interviews, readiness trend and priority practice areas will live here." />} />
         <Route path="interviews/new" element={<NewInterviewPage />} />
-        <Route path="interviews/:interviewId/live" element={<PlaceholderPage title="Live interview" description="This focused space will host the adaptive text, voice and coding interview experience." />} />
+        <Route path="interviews/:interviewId/live" element={<LiveInterviewPage />} />
         <Route path="interviews/:interviewId/feedback" element={<PlaceholderPage title="Feedback report" description="Detailed scoring, transcript evidence and your personalised improvement plan will appear here." />} />
         <Route path="history" element={<PlaceholderPage title="Interview history" description="Review previous sessions, reports and recurring strengths or gaps over time." />} />
         <Route path="settings" element={<PlaceholderPage title="Settings" description="Manage your profile, preferences, saved documents and privacy controls." />} />
