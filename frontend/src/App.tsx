@@ -445,17 +445,23 @@ function LandingPage() {
 
 function NewInterviewPage() {
   const navigate = useNavigate()
+  const location = useLocation()
+  const repeatedSession = (location.state ?? {}) as InterviewContext
   const [step, setStep] = useState(1)
-  const [company, setCompany] = useState('')
-  const [role, setRole] = useState('')
-  const [round, setRound] = useState('technical')
-  const [duration, setDuration] = useState('45')
+  const [company, setCompany] = useState(repeatedSession.company ?? '')
+  const [role, setRole] = useState(repeatedSession.role ?? '')
+  const [round, setRound] = useState(repeatedSession.round ?? 'technical')
+  const [duration, setDuration] = useState(repeatedSession.duration ?? '45')
   const [context, setContext] = useState('')
-  const [mode, setMode] = useState('text')
-  const [difficulty, setDifficulty] = useState('adaptive')
+  const [mode, setMode] = useState(repeatedSession.mode ?? 'text')
+  const [difficulty, setDifficulty] = useState(
+    repeatedSession.difficulty ?? 'adaptive',
+  )
   const [focusAreas, setFocusAreas] = useState<string[]>([
-    'Technical depth',
-    'Production thinking',
+    ...(repeatedSession.focusAreas ?? [
+      'Technical depth',
+      'Production thinking',
+    ]),
   ])
   const [resume, setResume] = useState<File | null>(null)
   const [jobDescription, setJobDescription] = useState<File | null>(null)
@@ -786,6 +792,362 @@ const dashboardSessions = [
     status: 'Completed',
   },
 ] as const
+
+type HistorySession = {
+  id: string
+  role: string
+  company: string
+  type: string
+  date: string
+  timestamp: number
+  score: number
+  duration: string
+  durationMinutes: string
+  mode: string
+  difficulty: string
+  focusAreas: string[]
+  competencies: [string, number][]
+}
+
+const historySessions: HistorySession[] = [
+  {
+    id: 'session-genai-04',
+    role: 'Senior Generative AI Engineer',
+    company: 'Wells Fargo',
+    type: 'Technical interview',
+    date: '28 Jul 2026',
+    timestamp: Date.parse('2026-07-28'),
+    score: 84,
+    duration: '38 min',
+    durationMinutes: '45',
+    mode: 'text',
+    difficulty: 'adaptive',
+    focusAreas: ['Technical depth', 'Production thinking'],
+    competencies: [['Technical depth', 88], ['Communication', 82], ['Role alignment', 85]],
+  },
+  {
+    id: 'session-agentic-03',
+    role: 'Agentic AI Lead',
+    company: 'Wealth Management',
+    type: 'System design',
+    date: '25 Jul 2026',
+    timestamp: Date.parse('2026-07-25'),
+    score: 81,
+    duration: '44 min',
+    durationMinutes: '45',
+    mode: 'text',
+    difficulty: 'challenging',
+    focusAreas: ['System design', 'Leadership'],
+    competencies: [['System design', 85], ['Technical depth', 83], ['Communication', 76]],
+  },
+  {
+    id: 'session-behavioural-02',
+    role: 'Senior AI Engineer',
+    company: 'Enterprise Platform',
+    type: 'Behavioural interview',
+    date: '22 Jul 2026',
+    timestamp: Date.parse('2026-07-22'),
+    score: 76,
+    duration: '31 min',
+    durationMinutes: '30',
+    mode: 'voice',
+    difficulty: 'adaptive',
+    focusAreas: ['Behavioural stories', 'Leadership'],
+    competencies: [['Answer structure', 79], ['Communication', 77], ['Role alignment', 73]],
+  },
+  {
+    id: 'session-rag-01',
+    role: 'GenAI Engineer',
+    company: 'Deloitte',
+    type: 'Technical interview',
+    date: '18 Jul 2026',
+    timestamp: Date.parse('2026-07-18'),
+    score: 75,
+    duration: '42 min',
+    durationMinutes: '45',
+    mode: 'text',
+    difficulty: 'adaptive',
+    focusAreas: ['Technical depth', 'Communication'],
+    competencies: [['RAG & evaluation', 82], ['Technical depth', 77], ['Communication', 68]],
+  },
+  {
+    id: 'session-architecture-05',
+    role: 'AI Platform Engineer',
+    company: 'Verizon',
+    type: 'System design',
+    date: '13 Jul 2026',
+    timestamp: Date.parse('2026-07-13'),
+    score: 72,
+    duration: '53 min',
+    durationMinutes: '60',
+    mode: 'mixed',
+    difficulty: 'challenging',
+    focusAreas: ['System design', 'Production thinking'],
+    competencies: [['System design', 78], ['Production thinking', 74], ['Communication', 64]],
+  },
+  {
+    id: 'session-recruiter-06',
+    role: 'Senior GenAI Engineer',
+    company: 'FinTech Team',
+    type: 'Recruiter screen',
+    date: '8 Jul 2026',
+    timestamp: Date.parse('2026-07-08'),
+    score: 68,
+    duration: '24 min',
+    durationMinutes: '30',
+    mode: 'voice',
+    difficulty: 'supportive',
+    focusAreas: ['Communication', 'Behavioural stories'],
+    competencies: [['Role alignment', 73], ['Communication', 69], ['Answer structure', 62]],
+  },
+  {
+    id: 'session-azure-07',
+    role: 'Azure GenAI Developer',
+    company: 'Banking Platform',
+    type: 'Technical interview',
+    date: '2 Jul 2026',
+    timestamp: Date.parse('2026-07-02'),
+    score: 70,
+    duration: '36 min',
+    durationMinutes: '45',
+    mode: 'text',
+    difficulty: 'adaptive',
+    focusAreas: ['Technical depth', 'Production thinking'],
+    competencies: [['Technical depth', 75], ['Role alignment', 71], ['Communication', 64]],
+  },
+  {
+    id: 'session-leadership-08',
+    role: 'AI Engineering Lead',
+    company: 'Healthcare AI',
+    type: 'Behavioural interview',
+    date: '27 Jun 2026',
+    timestamp: Date.parse('2026-06-27'),
+    score: 66,
+    duration: '29 min',
+    durationMinutes: '30',
+    mode: 'voice',
+    difficulty: 'supportive',
+    focusAreas: ['Leadership', 'Behavioural stories'],
+    competencies: [['Leadership', 72], ['Communication', 67], ['Answer structure', 59]],
+  },
+]
+
+function HistoryPage() {
+  const navigate = useNavigate()
+  const [query, setQuery] = useState('')
+  const [typeFilter, setTypeFilter] = useState('All interview types')
+  const [sortBy, setSortBy] = useState('Newest first')
+  const [page, setPage] = useState(1)
+  const pageSize = 4
+
+  const filteredSessions = useMemo(() => {
+    const normalisedQuery = query.trim().toLowerCase()
+    return historySessions
+      .filter((session) => {
+        const matchesQuery =
+          !normalisedQuery ||
+          [session.role, session.company, session.type].some((value) =>
+            value.toLowerCase().includes(normalisedQuery),
+          )
+        const matchesType =
+          typeFilter === 'All interview types' || session.type === typeFilter
+        return matchesQuery && matchesType
+      })
+      .sort((a, b) => {
+        if (sortBy === 'Oldest first') return a.timestamp - b.timestamp
+        if (sortBy === 'Highest score') return b.score - a.score
+        if (sortBy === 'Lowest score') return a.score - b.score
+        if (sortBy === 'Role A–Z') return a.role.localeCompare(b.role)
+        return b.timestamp - a.timestamp
+      })
+  }, [query, sortBy, typeFilter])
+
+  const pageCount = Math.max(1, Math.ceil(filteredSessions.length / pageSize))
+  const visibleSessions = filteredSessions.slice(
+    (page - 1) * pageSize,
+    page * pageSize,
+  )
+
+  useEffect(() => {
+    setPage(1)
+  }, [query, sortBy, typeFilter])
+
+  const repeatSession = (session: HistorySession) => {
+    navigate('/interviews/new', {
+      state: {
+        company: session.company,
+        role: session.role,
+        round:
+          session.type === 'System design'
+            ? 'system-design'
+            : session.type === 'Behavioural interview'
+              ? 'behavioural'
+              : session.type === 'Recruiter screen'
+                ? 'recruiter'
+                : 'technical',
+        duration: session.durationMinutes,
+        mode: session.mode,
+        difficulty: session.difficulty,
+        focusAreas: session.focusAreas,
+      } satisfies InterviewContext,
+    })
+  }
+
+  return (
+    <main className="min-h-[calc(100vh-4.5rem)] bg-stone-100/70">
+      <section className="border-b border-stone-200 bg-white">
+        <div className="page-shell flex flex-col gap-6 py-9 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <Badge variant="accent">Interview history</Badge>
+            <h1 className="mt-4 font-serif text-4xl font-semibold tracking-tight text-stone-950 sm:text-5xl">
+              Your practice, in context.
+            </h1>
+            <p className="mt-3 max-w-2xl text-base leading-7 text-stone-600">
+              Review every session, compare competency signals and repeat the
+              interview configurations that matter most.
+            </p>
+          </div>
+          <Link className="button-link button-link-primary" to="/interviews/new">
+            Start a new interview <span aria-hidden="true">→</span>
+          </Link>
+        </div>
+      </section>
+
+      <div className="page-shell space-y-6 py-8 sm:py-12">
+        <section className="grid gap-4 sm:grid-cols-3" aria-label="History summary">
+          {[
+            ['Total sessions', String(historySessions.length), 'Across four interview types'],
+            ['Average score', '74', '+6 points since June'],
+            ['Best performance', '84', 'Technical interview · 28 Jul'],
+          ].map(([label, value, note]) => (
+            <Card key={label} compact>
+              <p className="text-xs font-bold uppercase tracking-wider text-stone-500">{label}</p>
+              <p className="mt-2 font-serif text-3xl font-semibold text-stone-950">{value}</p>
+              <p className="mt-1 text-xs leading-5 text-stone-500">{note}</p>
+            </Card>
+          ))}
+        </section>
+
+        <Card>
+          <div className="grid gap-4 border-b border-stone-200 pb-6 lg:grid-cols-[minmax(15rem,1fr)_14rem_12rem]">
+            <FormField id="history-search" label="Search sessions">
+              <Input
+                id="history-search"
+                type="search"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Search by role, company or type"
+              />
+            </FormField>
+            <FormField id="history-type" label="Interview type">
+              <Select id="history-type" value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}>
+                <option>All interview types</option>
+                <option>Technical interview</option>
+                <option>System design</option>
+                <option>Behavioural interview</option>
+                <option>Recruiter screen</option>
+              </Select>
+            </FormField>
+            <FormField id="history-sort" label="Sort by">
+              <Select id="history-sort" value={sortBy} onChange={(event) => setSortBy(event.target.value)}>
+                <option>Newest first</option>
+                <option>Oldest first</option>
+                <option>Highest score</option>
+                <option>Lowest score</option>
+                <option>Role A–Z</option>
+              </Select>
+            </FormField>
+          </div>
+
+          {visibleSessions.length === 0 ? (
+            <div className="py-8">
+              <EmptyState
+                title="No matching interviews"
+                description="Try a broader search or reset the interview-type filter."
+                action={
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setQuery('')
+                      setTypeFilter('All interview types')
+                      setSortBy('Newest first')
+                    }}
+                  >
+                    Reset filters
+                  </Button>
+                }
+              />
+            </div>
+          ) : (
+            <div className="divide-y divide-stone-200">
+              {visibleSessions.map((session) => (
+                <article key={session.id} className="py-6">
+                  <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(16rem,0.65fr)_auto] lg:items-center">
+                    <div className="flex min-w-0 gap-4">
+                      <span className="grid size-14 shrink-0 place-items-center rounded-2xl bg-stone-950 font-serif text-xl font-semibold text-white">
+                        {session.score}
+                      </span>
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h2 className="font-semibold text-stone-950">{session.role}</h2>
+                          <Badge variant={session.score >= 80 ? 'success' : session.score >= 70 ? 'warning' : 'neutral'}>
+                            {session.score >= 80 ? 'Strong' : session.score >= 70 ? 'Developing' : 'Foundation'}
+                          </Badge>
+                        </div>
+                        <p className="mt-1 text-sm text-stone-500">{session.company} · {session.type}</p>
+                        <p className="mt-2 text-xs text-stone-400">{session.date} · {session.duration}</p>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      {session.competencies.map(([label, score]) => (
+                        <div key={label} className="flex items-center justify-between gap-4 text-xs">
+                          <span className="truncate text-stone-500">{label}</span>
+                          <span className="font-semibold text-stone-800">{score}%</span>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex flex-wrap gap-2 lg:flex-col">
+                      <Link className="button-link button-link-secondary" to={`/interviews/${session.id}/feedback`}>
+                        View feedback
+                      </Link>
+                      <Button variant="ghost" onClick={() => repeatSession(session)}>
+                        Repeat setup
+                      </Button>
+                    </div>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+
+          <div className="flex flex-col gap-4 border-t border-stone-200 pt-5 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-stone-500">
+              {filteredSessions.length === 0
+                ? 'No sessions'
+                : `Showing ${(page - 1) * pageSize + 1}–${Math.min(page * pageSize, filteredSessions.length)} of ${filteredSessions.length} sessions`}
+            </p>
+            <nav className="flex items-center gap-2" aria-label="History pagination">
+              <Button variant="outline" disabled={page === 1} onClick={() => setPage((current) => current - 1)}>
+                Previous
+              </Button>
+              <span className="px-2 text-sm font-semibold text-stone-700">
+                Page {page} of {pageCount}
+              </span>
+              <Button variant="outline" disabled={page === pageCount} onClick={() => setPage((current) => current + 1)}>
+                Next
+              </Button>
+            </nav>
+          </div>
+        </Card>
+
+        <p className="text-center text-xs leading-5 text-stone-500">
+          History data is illustrative until account persistence and backend
+          evaluation are connected.
+        </p>
+      </div>
+    </main>
+  )
+}
 
 const readinessTrend = [
   { label: '8 Jul', score: 68 },
@@ -1576,7 +1938,7 @@ export default function App() {
         <Route path="interviews/new" element={<NewInterviewPage />} />
         <Route path="interviews/:interviewId/live" element={<LiveInterviewPage />} />
         <Route path="interviews/:interviewId/feedback" element={<FeedbackReportPage />} />
-        <Route path="history" element={<PlaceholderPage title="Interview history" description="Review previous sessions, reports and recurring strengths or gaps over time." />} />
+        <Route path="history" element={<HistoryPage />} />
         <Route path="settings" element={<PlaceholderPage title="Settings" description="Manage your profile, preferences, saved documents and privacy controls." />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
