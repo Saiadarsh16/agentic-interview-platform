@@ -1,121 +1,163 @@
 import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
 import './App.css'
+import {
+  Badge,
+  Button,
+  Card,
+  EmptyState,
+  FileUpload,
+  FormField,
+  Input,
+  Progress,
+  Select,
+  Spinner,
+  Textarea,
+} from './components/ui'
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [resume, setResume] = useState<File | null>(null)
+  const [jobDescription, setJobDescription] = useState<File | null>(null)
+  const [isPreparing, setIsPreparing] = useState(false)
+
+  const handlePrepare = () => {
+    setIsPreparing(true)
+    window.setTimeout(() => setIsPreparing(false), 1400)
+  }
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
+    <main className="min-h-screen bg-stone-50 px-4 py-10 text-stone-900 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-5xl">
+        <header className="mb-10 max-w-2xl">
+          <Badge variant="accent">Interview setup</Badge>
+          <h1 className="mt-4 text-4xl font-semibold tracking-tight text-stone-950 sm:text-5xl">
+            Let’s shape your next interview.
+          </h1>
+          <p className="mt-4 text-base leading-7 text-stone-600 sm:text-lg">
+            Add your role details and source material. Your interviewer will use
+            them to prepare focused, evidence-based questions.
           </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+        </header>
 
-      <div className="ticks"></div>
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_18rem]">
+          <Card
+            title="Interview details"
+            description="Tell us what you are preparing for."
+          >
+            <div className="grid gap-5 sm:grid-cols-2">
+              <FormField
+                id="company"
+                label="Company"
+                hint="Optional, but useful for company-specific context."
+              >
+                <Input id="company" placeholder="e.g. Wells Fargo" />
+              </FormField>
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+              <FormField id="role" label="Target role" required>
+                <Input
+                  id="role"
+                  placeholder="e.g. Senior GenAI Engineer"
+                  required
+                />
+              </FormField>
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
+              <FormField id="round" label="Interview round">
+                <Select id="round" defaultValue="technical">
+                  <option value="recruiter">Recruiter screen</option>
+                  <option value="technical">Technical interview</option>
+                  <option value="system-design">System design</option>
+                  <option value="behavioural">Behavioural interview</option>
+                </Select>
+              </FormField>
+
+              <FormField id="duration" label="Duration">
+                <Select id="duration" defaultValue="45">
+                  <option value="30">30 minutes</option>
+                  <option value="45">45 minutes</option>
+                  <option value="60">60 minutes</option>
+                </Select>
+              </FormField>
+            </div>
+
+            <div className="mt-5">
+              <FormField
+                id="context"
+                label="Anything the interviewer should know?"
+                hint="Add previous-round feedback, priorities, or topics to avoid."
+              >
+                <Textarea
+                  id="context"
+                  rows={4}
+                  placeholder="The previous round focused heavily on RAG. I want deeper questions on LangGraph and production evaluation."
+                />
+              </FormField>
+            </div>
+
+            <div className="mt-6 grid gap-4 sm:grid-cols-2">
+              <FileUpload
+                id="resume"
+                label="Resume"
+                description="PDF or DOCX, up to 10 MB"
+                accept=".pdf,.doc,.docx"
+                file={resume}
+                onFileChange={setResume}
+              />
+              <FileUpload
+                id="job-description"
+                label="Job description"
+                description="PDF, DOCX, or TXT"
+                accept=".pdf,.doc,.docx,.txt"
+                file={jobDescription}
+                onFileChange={setJobDescription}
+              />
+            </div>
+
+            <div className="mt-8 flex flex-col-reverse gap-3 border-t border-stone-200 pt-6 sm:flex-row sm:justify-end">
+              <Button variant="ghost">Save for later</Button>
+              <Button loading={isPreparing} onClick={handlePrepare}>
+                {isPreparing ? 'Preparing interview' : 'Prepare interview'}
+              </Button>
+            </div>
+          </Card>
+
+          <aside className="space-y-6">
+            <Card title="Preparation" compact>
+              <Progress value={35} label="Setup progress" />
+              <div className="mt-5 space-y-3 text-sm">
+                <div className="flex items-center justify-between">
+                  <span className="text-stone-600">Interview details</span>
+                  <Badge variant="success">Ready</Badge>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-stone-600">Source documents</span>
+                  <Badge>Pending</Badge>
+                </div>
+              </div>
+            </Card>
+
+            {isPreparing ? (
+              <Card compact>
+                <div className="flex items-center gap-3" role="status">
+                  <Spinner />
+                  <div>
+                    <p className="text-sm font-medium text-stone-900">
+                      Analysing your inputs
+                    </p>
+                    <p className="mt-0.5 text-sm text-stone-500">
+                      This usually takes a moment.
+                    </p>
+                  </div>
+                </div>
+              </Card>
+            ) : (
+              <EmptyState
+                title="No interview prepared yet"
+                description="Complete the details to generate your personalised interview plan."
+              />
+            )}
+          </aside>
+        </div>
+      </div>
+    </main>
   )
 }
 
