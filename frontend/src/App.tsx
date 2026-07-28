@@ -417,7 +417,7 @@ function LandingPage() {
                   experience. Your first setup takes only a few minutes.
                 </p>
                 <Link
-                  className="button-link mt-8 bg-white text-orange-800 hover:bg-orange-50"
+                  className="button-link button-link-secondary mt-8"
                   to="/interviews/new"
                 >
                   Create my interview <span aria-hidden="true">→</span>
