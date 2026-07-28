@@ -18,6 +18,10 @@ class Settings(BaseSettings):
     app_debug: bool = False
     api_v1_prefix: str = "/api/v1"
     backend_cors_origins: list[AnyHttpUrl] = [AnyHttpUrl("http://localhost:5173")]
+    database_url: str = (
+        "postgresql+asyncpg://interview:interview@localhost:5432/interview_platform"
+    )
+    redis_url: str = "redis://localhost:6379/0"
 
     @property
     def docs_enabled(self) -> bool:

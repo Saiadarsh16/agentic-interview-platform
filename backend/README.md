@@ -1,21 +1,24 @@
 # FastAPI backend
 
 This service is the API foundation for the Agentic Interview Platform. The
-current milestone intentionally contains no LLM, vector database, database, or
-Redis calls.
+current milestone includes local PostgreSQL persistence and Redis connectivity.
+It intentionally contains no LLM or vector-database calls yet.
 
 ## Requirements
 
 - Python 3.11+
+- Docker Desktop
 
 ## Run locally
 
 ```bash
+docker compose up -d
 cd backend
 python -m venv .venv
 source .venv/bin/activate
 pip install -e ".[dev]"
 cp .env.example .env
+alembic upgrade head
 uvicorn app.main:app --reload
 ```
 
@@ -30,6 +33,7 @@ Open:
 - API documentation: <http://localhost:8000/docs>
 - Liveness: <http://localhost:8000/api/v1/health/live>
 - Readiness: <http://localhost:8000/api/v1/health/ready>
+- Interview sessions: <http://localhost:8000/api/v1/interview-sessions>
 
 ## Validate
 
@@ -38,8 +42,11 @@ pytest
 ruff check .
 ```
 
-## Next integrations
+## Stop local services
 
-PostgreSQL and Redis will be added with local Docker services before LangGraph,
-OpenAI, Pinecone, and RAGAS are connected. AWS EKS remains a deployment-stage
-milestone.
+```bash
+docker compose down
+```
+
+LangGraph, OpenAI, Pinecone, and RAGAS remain later milestones. AWS EKS remains
+a deployment-stage milestone.
