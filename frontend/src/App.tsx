@@ -1087,6 +1087,223 @@ function LiveInterviewPage() {
   )
 }
 
+type FeedbackContext = InterviewContext & {
+  answers?: string[]
+  elapsedSeconds?: number
+}
+
+const scoreLabels = [
+  ['Technical depth', 86],
+  ['Answer structure', 79],
+  ['Communication', 82],
+  ['Role alignment', 84],
+] as const
+
+const answerFeedback = [
+  { strength: 'You establish the business need before describing the agent workflow.', improvement: 'Name the orchestration guardrails and quantify the production result.' },
+  { strength: 'You separate retrieval quality from response quality.', improvement: 'Add concrete offline metrics, thresholds and a production monitoring loop.' },
+  { strength: 'You recognise the need for observability and bounded execution.', improvement: 'Explain the exact stop condition, retry policy and fallback path.' },
+  { strength: 'Your design covers the main platform layers and privacy concerns.', improvement: 'Make the data-retention model and scaling trade-offs more explicit.' },
+  { strength: 'You show that new evidence can change a technical decision.', improvement: 'Close with a measurable result and the principle you carried forward.' },
+]
+
+function FeedbackReportPage() {
+  const { interviewId = 'practice-session' } = useParams()
+  const navigate = useNavigate()
+  const location = useLocation()
+  const context = (location.state ?? {}) as FeedbackContext
+  const [expandedAnswer, setExpandedAnswer] = useState(0)
+
+  const answers = sampleQuestions.map((_, index) => context.answers?.[index] ?? '')
+  const answeredCount = answers.filter((answer) => answer.trim()).length
+  const wordCount = answers.reduce(
+    (total, answer) => total + answer.trim().split(/\s+/).filter(Boolean).length,
+    0,
+  )
+  const completenessScore = Math.round((answeredCount / sampleQuestions.length) * 100)
+  const overallScore = Math.round(
+    scoreLabels.reduce((total, [, score]) => total + score, 0) / scoreLabels.length,
+  )
+  const role = context.role || 'Senior GenAI Engineer'
+  const company = context.company?.trim()
+  const elapsedSeconds = context.elapsedSeconds ?? 0
+
+  return (
+    <main className="min-h-[calc(100vh-4.5rem)] bg-stone-100/70">
+      <section className="border-b border-stone-200 bg-stone-950 text-white">
+        <div className="page-shell py-10 sm:py-14">
+          <div className="flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
+            <div className="max-w-2xl">
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge className="bg-emerald-400/10 text-emerald-300 ring-emerald-400/20">
+                  Practice complete
+                </Badge>
+                <span className="text-sm text-stone-400">Session {interviewId}</span>
+              </div>
+              <h1 className="mt-5 font-serif text-4xl font-semibold tracking-tight sm:text-5xl">
+                Your interview feedback
+              </h1>
+              <p className="mt-3 text-base capitalize leading-7 text-stone-300">
+                {role}{company ? ' at ' + company : ''} ·{' '}
+                {context.round ? context.round.replace('-', ' ') : 'Technical interview'}
+              </p>
+            </div>
+            <div className="flex items-end gap-4">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-stone-400">
+                  Readiness score
+                </p>
+                <p className="mt-1 font-serif text-6xl font-semibold text-orange-300">
+                  {overallScore}<span className="text-xl text-stone-500">/100</span>
+                </p>
+              </div>
+              <Badge variant="success">Strong foundation</Badge>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div className="page-shell space-y-8 py-8 sm:py-12">
+        <section className="grid gap-4 sm:grid-cols-3" aria-label="Session summary">
+          {[
+            ['Answered', answeredCount + '/' + sampleQuestions.length],
+            ['Total words', String(wordCount)],
+            ['Practice time', formatTime(elapsedSeconds)],
+          ].map(([label, value]) => (
+            <Card key={label} compact>
+              <p className="text-xs font-bold uppercase tracking-wider text-stone-500">{label}</p>
+              <p className="mt-2 font-serif text-3xl font-semibold text-stone-950">{value}</p>
+            </Card>
+          ))}
+        </section>
+
+        <section className="grid gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(18rem,0.8fr)]">
+          <Card title="Competency breakdown" description="A clear view of the signals demonstrated across this practice session.">
+            <div className="space-y-6">
+              {scoreLabels.map(([label, score]) => (
+                <Progress key={label} value={score} label={label + ' · ' + score + '%'} />
+              ))}
+            </div>
+            <p className="mt-6 rounded-xl bg-amber-50 p-4 text-sm leading-6 text-amber-950">
+              These are illustrative frontend scores based on the current sample session.
+              Model-based evaluation and evidence scoring will be connected through the backend later.
+            </p>
+          </Card>
+
+          <div className="space-y-6">
+            <Card title="What worked" compact>
+              <ul className="space-y-4 text-sm leading-6 text-stone-700">
+                {[
+                  'You organise technical answers around the business problem.',
+                  'Your responses show strong production and risk awareness.',
+                  'You communicate trade-offs instead of listing tools alone.',
+                ].map((item) => (
+                  <li key={item} className="flex gap-3">
+                    <span className="mt-1 grid size-5 shrink-0 place-items-center rounded-full bg-emerald-100 text-xs font-bold text-emerald-800">✓</span>
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </Card>
+            <Card title="Priority improvement" compact>
+              <p className="text-sm leading-6 text-stone-700">
+                Strengthen every answer with one measurable outcome and one explicit
+                decision trade-off. This will make your experience sound more senior and credible.
+              </p>
+              <div className="mt-5">
+                <Progress value={completenessScore} label="Response completeness" />
+              </div>
+            </Card>
+          </div>
+        </section>
+
+        <section>
+          <div className="max-w-2xl">
+            <p className="eyebrow">Answer review</p>
+            <h2 className="mt-2 font-serif text-3xl font-semibold text-stone-950">
+              Evidence behind the feedback
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-stone-600">
+              Open each question to compare your response with focused coaching.
+            </p>
+          </div>
+          <div className="mt-6 space-y-3">
+            {sampleQuestions.map((item, index) => {
+              const expanded = expandedAnswer === index
+              const answer = answers[index].trim()
+              return (
+                <article key={item.category} className="overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm">
+                  <button
+                    type="button"
+                    className="flex w-full items-start justify-between gap-5 p-5 text-left sm:p-6"
+                    onClick={() => setExpandedAnswer(expanded ? -1 : index)}
+                    aria-expanded={expanded}
+                  >
+                    <span className="flex min-w-0 gap-4">
+                      <span className="grid size-9 shrink-0 place-items-center rounded-full bg-orange-100 text-sm font-bold text-orange-800">{index + 1}</span>
+                      <span>
+                        <span className="text-xs font-bold uppercase tracking-wider text-stone-500">{item.category}</span>
+                        <span className="mt-1 block font-serif text-lg font-semibold leading-6 text-stone-950">{item.question}</span>
+                      </span>
+                    </span>
+                    <span className="text-2xl leading-none text-stone-400" aria-hidden="true">{expanded ? '−' : '+'}</span>
+                  </button>
+                  {expanded && (
+                    <div className="border-t border-stone-200 p-5 sm:p-6">
+                      <div className="grid gap-5 lg:grid-cols-2">
+                        <div>
+                          <p className="text-xs font-bold uppercase tracking-wider text-stone-500">Your response</p>
+                          <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-stone-700">
+                            {answer || 'No response was submitted for this question.'}
+                          </p>
+                        </div>
+                        <div className="space-y-4">
+                          <div className="rounded-xl bg-emerald-50 p-4">
+                            <p className="text-xs font-bold uppercase tracking-wider text-emerald-800">Strong signal</p>
+                            <p className="mt-2 text-sm leading-6 text-emerald-950">
+                              {answer ? answerFeedback[index].strength : 'Revisit this question to create a complete response.'}
+                            </p>
+                          </div>
+                          <div className="rounded-xl bg-orange-50 p-4">
+                            <p className="text-xs font-bold uppercase tracking-wider text-orange-800">Make it stronger</p>
+                            <p className="mt-2 text-sm leading-6 text-orange-950">{answerFeedback[index].improvement}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </article>
+              )
+            })}
+          </div>
+        </section>
+
+        <section className="grid gap-6 lg:grid-cols-[1fr_auto] lg:items-center">
+          <Card title="Your next practice plan" description="A focused sequence for turning this feedback into stronger interview performance.">
+            <ol className="grid gap-4 sm:grid-cols-3">
+              {[
+                ['01', 'Add measurable outcomes', 'Revise two answers with scale, latency, quality or business-impact metrics.'],
+                ['02', 'Practise concise structure', 'Use Context → Decision → Execution → Result and stay under two minutes.'],
+                ['03', 'Repeat under pressure', 'Run another adaptive session and compare the competency scores.'],
+              ].map(([number, title, copy]) => (
+                <li key={number} className="rounded-xl border border-stone-200 bg-stone-50 p-4">
+                  <span className="font-serif text-sm font-semibold text-orange-700">{number}</span>
+                  <p className="mt-3 font-semibold text-stone-950">{title}</p>
+                  <p className="mt-2 text-sm leading-6 text-stone-600">{copy}</p>
+                </li>
+              ))}
+            </ol>
+          </Card>
+          <div className="flex flex-col gap-3">
+            <Button onClick={() => navigate('/interviews/new')}>Practise again</Button>
+            <Button variant="outline" onClick={() => navigate('/dashboard')}>Go to dashboard</Button>
+          </div>
+        </section>
+      </div>
+    </main>
+  )
+}
+
 export default function App() {
   return (
     <Routes>
@@ -1095,7 +1312,7 @@ export default function App() {
         <Route path="dashboard" element={<PlaceholderPage title="Dashboard" description="Your recent interviews, readiness trend and priority practice areas will live here." />} />
         <Route path="interviews/new" element={<NewInterviewPage />} />
         <Route path="interviews/:interviewId/live" element={<LiveInterviewPage />} />
-        <Route path="interviews/:interviewId/feedback" element={<PlaceholderPage title="Feedback report" description="Detailed scoring, transcript evidence and your personalised improvement plan will appear here." />} />
+        <Route path="interviews/:interviewId/feedback" element={<FeedbackReportPage />} />
         <Route path="history" element={<PlaceholderPage title="Interview history" description="Review previous sessions, reports and recurring strengths or gaps over time." />} />
         <Route path="settings" element={<PlaceholderPage title="Settings" description="Manage your profile, preferences, saved documents and privacy controls." />} />
         <Route path="*" element={<Navigate to="/" replace />} />
