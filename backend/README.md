@@ -1,8 +1,9 @@
 # FastAPI backend
 
 This service is the API foundation for the Agentic Interview Platform. The
-current milestone includes local PostgreSQL persistence and Redis connectivity.
-It intentionally contains no LLM or vector-database calls yet.
+current milestone includes local PostgreSQL persistence, Redis connectivity,
+and document ingestion for resumes and job descriptions. It intentionally
+contains no LLM, embedding, or vector-database calls yet.
 
 ## Requirements
 
@@ -34,6 +35,11 @@ Open:
 - Liveness: <http://localhost:8000/api/v1/health/live>
 - Readiness: <http://localhost:8000/api/v1/health/ready>
 - Interview sessions: <http://localhost:8000/api/v1/interview-sessions>
+- Documents: <http://localhost:8000/api/v1/documents>
+
+The document endpoint accepts PDF, DOCX, and UTF-8 TXT files up to 5 MB. It
+extracts and normalises text, stores metadata, and creates deterministic,
+overlapping chunks for the later embedding pipeline.
 
 ## Validate
 

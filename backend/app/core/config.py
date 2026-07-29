@@ -22,6 +22,9 @@ class Settings(BaseSettings):
         "postgresql+asyncpg://interview:interview@localhost:5432/interview_platform"
     )
     redis_url: str = "redis://localhost:6379/0"
+    document_max_bytes: int = 5 * 1024 * 1024
+    document_chunk_size: int = 2000
+    document_chunk_overlap: int = 200
 
     @property
     def docs_enabled(self) -> bool:
