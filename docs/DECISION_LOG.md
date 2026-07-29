@@ -220,3 +220,30 @@ The following choices have been agreed at the product level but will receive the
 ## Next decision
 
 The next frontend decision should define the component strategy: whether to build accessible components in-house, adopt a headless component foundation, or use a pre-styled UI library.
+
+
+---
+
+## D-008 — Use rubric-specific, evidence-grounded answer evaluation
+
+- **Date:** 29 July 2026
+- **Status:** Accepted
+- **Decision:** Evaluate technical and behavioural answers with separate weighted rubrics, preserve individual scoring dimensions, and ground coaching feedback in the persisted question evidence and candidate answer.
+
+### Context
+
+A single opaque interview score would not explain whether an answer was weak because of correctness, relevance, depth, clarity, or grounding. Technical and behavioural answers also demonstrate quality differently. The platform needs actionable coaching without inventing candidate experience.
+
+### Why this was chosen
+
+Each answer retains correctness, relevance, depth, clarity, grounding, strengths, gaps, unsupported claims, and an improved sample answer. Technical answers weight correctness and depth most heavily; behavioural answers weight relevance, depth, and clarity more heavily. Numeric aggregation is deterministic in application code, while the language model supplies structured rubric judgments and coaching text. A version identifier is stored with every evaluation for reproducibility.
+
+### Alternatives considered
+
+- **One overall LLM score:** Simpler, but opaque, difficult to calibrate, and less useful for coaching.
+- **One rubric for every question:** Easier to maintain, but incorrectly treats technical accuracy and behavioural storytelling as equivalent.
+- **Pure rule-based grading:** Predictable, but unable to judge nuanced explanations, trade-offs, and communication quality.
+
+### Consequences and trade-offs
+
+Evaluation requires one structured model call per answered question plus one report-synthesis call, which adds latency and API cost after an interview. Reports are therefore generated only after completion, persisted in PostgreSQL, and returned idempotently unless explicit regeneration is requested. Provider-free tests use a fake evaluator and never consume API credits.
