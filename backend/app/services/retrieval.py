@@ -14,22 +14,35 @@ from app.schemas.retrieval import RetrievalMatch
 
 class RetrievalService:
     def __init__(self, settings: Settings) -> None:
-        if settings.openai_api_key is None or settings.pinecone_api_key is None:
+        openai_key = (
+            settings.openai_api_key.get_secret_value().strip()
+            if settings.openai_api_key is not None
+            else ""
+        )
+        pinecone_key = (
+            settings.pinecone_api_key.get_secret_value().strip()
+            if settings.pinecone_api_key is not None
+            else ""
+        )
+        if not openai_key or not pinecone_key:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="OpenAI and Pinecone credentials are required for semantic retrieval.",
             )
         self.settings = settings
-        self.openai = AsyncOpenAI(api_key=settings.openai_api_key.get_secret_value())
-        self.pinecone = Pinecone(api_key=settings.pinecone_api_key.get_secret_value())
+        self.openai = AsyncOpenAI(api_key=openai_key)
+        self.pinecone = Pinecone(api_key=pinecone_key)
 
     async def _embed(self, texts: list[str]) -> list[list[float]]:
-        response = await self.openai.embeddings.create(
-            model=self.settings.openai_embedding_model,
-            input=texts,
-            dimensions=self.settings.embedding_dimension,
-        )
-        return [item.embedding for item in response.data]
+        vectors = []
+        for start in range(0, len(texts), self.settings.embedding_batch_size):
+            response = await self.openai.embeddings.create(
+                model=self.settings.openai_embedding_model,
+                input=texts[start : start + self.settings.embedding_batch_size],
+                dimensions=self.settings.embedding_dimension,
+            )
+            vectors.extend(item.embedding for item in response.data)
+        return vectors
 
     async def _index(self) -> Any:
         names = await asyncio.to_thread(self.pinecone.list_indexes)
@@ -73,11 +86,13 @@ class RetrievalService:
             for chunk, vector in zip(chunks, vectors, strict=True)
         ]
         index = await self._index()
-        await asyncio.to_thread(
-            index.upsert,
-            vectors=records,
-            namespace=self.settings.pinecone_namespace,
-        )
+        batch_size = self.settings.pinecone_upsert_batch_size
+        for start in range(0, len(records), batch_size):
+            await asyncio.to_thread(
+                index.upsert,
+                vectors=records[start : start + batch_size],
+                namespace=self.settings.pinecone_namespace,
+            )
         return len(records)
 
     async def search(
