@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     document_chunk_overlap: int = 200
 
     openai_api_key: SecretStr | None = None
+    openai_chat_model: str = "gpt-4.1-mini"
     openai_embedding_model: str = "text-embedding-3-small"
     embedding_dimension: int = 1536
     embedding_batch_size: int = 100
@@ -36,6 +37,9 @@ class Settings(BaseSettings):
     pinecone_cloud: str = "aws"
     pinecone_region: str = "us-east-1"
     pinecone_upsert_batch_size: int = 100
+    question_generation_top_k: int = 8
+    question_generation_max_retries: int = 1
+    question_acceptance_score: int = 80
 
     @property
     def docs_enabled(self) -> bool:
