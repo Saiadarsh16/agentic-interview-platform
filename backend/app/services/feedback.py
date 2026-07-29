@@ -3,17 +3,13 @@ from collections import defaultdict
 from typing import Any
 
 from fastapi import HTTPException
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings, get_settings
 from app.db.models.feedback import AnswerEvaluation, EvaluationStatus, InterviewFeedbackReport
 from app.db.models.interview_session import InterviewSession, InterviewStatus
-from app.db.models.live_interview import (
-    InterviewAnswer,
-    InterviewQuestion,
-    LiveQuestionStatus,
-)
+from app.db.models.live_interview import InterviewAnswer, InterviewQuestion, LiveQuestionStatus
 from app.schemas.feedback import AnswerEvaluationResponse, InterviewFeedbackResponse
 from app.services.question_generation import JsonLLM, OpenAIJsonLLM
 
@@ -74,24 +70,12 @@ class FeedbackService:
 
         skipped_count = int(
             await db.scalar(
-                select(InterviewQuestion)
-                .where(
+                select(func.count(InterviewQuestion.id)).where(
                     InterviewQuestion.interview_session_id == interview.id,
                     InterviewQuestion.status == LiveQuestionStatus.skipped,
                 )
-                .with_only_columns(InterviewQuestion.id)
             )
-            is not None
-        )
-        skipped_count = len(
-            list(
-                await db.scalars(
-                    select(InterviewQuestion.id).where(
-                        InterviewQuestion.interview_session_id == interview.id,
-                        InterviewQuestion.status == LiveQuestionStatus.skipped,
-                    )
-                )
-            )
+            or 0
         )
         report_data = await self._summarise(interview, rows, evaluations)
         report = InterviewFeedbackReport(
@@ -159,16 +143,13 @@ class FeedbackService:
             name: self._score(result.get(name, 0))
             for name in ("correctness", "relevance", "depth", "clarity", "grounding")
         }
-        overall = self._weighted_score(rubric_type, scores)
-        improved = str(result.get("improved_answer", "")).strip()
-        if not improved:
-            improved = answer.answer
+        improved = str(result.get("improved_answer", "")).strip() or answer.answer
         return AnswerEvaluation(
             interview_session_id=interview.id,
             question_id=question.id,
             answer_id=answer.id,
             rubric_type=rubric_type,
-            overall_score=overall,
+            overall_score=self._weighted_score(rubric_type, scores),
             strengths=self._strings(result.get("strengths"), limit=5),
             gaps=self._strings(result.get("gaps"), limit=5),
             unsupported_claims=self._strings(result.get("unsupported_claims"), limit=5),
@@ -185,7 +166,7 @@ class FeedbackService:
         rows: list[tuple[InterviewQuestion, InterviewAnswer]],
         evaluations: list[AnswerEvaluation],
     ) -> dict[str, Any]:
-        result = await self.llm.complete(
+        return await self.llm.complete(
             system=(
                 "Create a concise final interview coaching report from the supplied per-answer "
                 "evaluations. Return JSON with summary, strengths, improvement_areas and "
@@ -208,7 +189,6 @@ class FeedbackService:
                 ],
             },
         )
-        return result
 
     async def _response(
         self, db: AsyncSession, report: InterviewFeedbackReport
@@ -220,12 +200,15 @@ class FeedbackService:
                 .order_by(AnswerEvaluation.created_at)
             )
         )
+        report_data = {
+            column.name: getattr(report, column.name)
+            for column in InterviewFeedbackReport.__table__.columns
+        }
         return InterviewFeedbackResponse(
-            **{
-                column.name: getattr(report, column.name)
-                for column in InterviewFeedbackReport.__table__.columns
-            },
-            answer_evaluations=[AnswerEvaluationResponse.model_validate(item) for item in evaluations],
+            **report_data,
+            answer_evaluations=[
+                AnswerEvaluationResponse.model_validate(item) for item in evaluations
+            ],
         )
 
     @classmethod
@@ -241,11 +224,22 @@ class FeedbackService:
 
     @staticmethod
     def _weighted_score(rubric_type: str, scores: dict[str, int]) -> float:
-        weights = (
-            {"correctness": 0.30, "relevance": 0.20, "depth": 0.25, "clarity": 0.15, "grounding": 0.10}
-            if rubric_type == "technical"
-            else {"correctness": 0.10, "relevance": 0.30, "depth": 0.25, "clarity": 0.25, "grounding": 0.10}
-        )
+        if rubric_type == "technical":
+            weights = {
+                "correctness": 0.30,
+                "relevance": 0.20,
+                "depth": 0.25,
+                "clarity": 0.15,
+                "grounding": 0.10,
+            }
+        else:
+            weights = {
+                "correctness": 0.10,
+                "relevance": 0.30,
+                "depth": 0.25,
+                "clarity": 0.25,
+                "grounding": 0.10,
+            }
         return round(sum(scores[name] * weight for name, weight in weights.items()), 1)
 
     @staticmethod
