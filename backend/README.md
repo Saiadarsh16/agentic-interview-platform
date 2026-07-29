@@ -1,16 +1,15 @@
 # FastAPI backend
 
-This service is the API foundation for the Agentic Interview Platform. The
-current milestone includes PostgreSQL persistence, Redis connectivity, document
-ingestion, OpenAI embeddings, Pinecone indexing, semantic retrieval, and
-LangGraph-based personalised question generation over resume and job-description
-evidence.
+This service is the API foundation for the Agentic Interview Platform. It includes
+PostgreSQL persistence, Redis connectivity, document ingestion, OpenAI embeddings,
+Pinecone retrieval, grounded LangGraph question generation, and a persistent live
+interview workflow.
 
 ## Requirements
 
 - Python 3.11+
 - Docker Desktop
-- OpenAI API key for embeddings
+- OpenAI API key
 - Pinecone API key
 
 ## Run locally
@@ -33,7 +32,7 @@ source .venv/Scripts/activate
 ```
 
 Keep actual credentials only in `backend/.env`. The application starts without
-them, but retrieval endpoints return `503` until both keys are configured.
+them, but provider-backed endpoints return `503` until the keys are configured.
 
 Open:
 
@@ -45,22 +44,13 @@ Open:
 - Retrieval: <http://localhost:8000/api/v1/retrieval/search>
 - Question generation:
   `POST /api/v1/interview-sessions/{session_id}/questions/generate`
+- Live interview:
+  `POST /api/v1/interview-sessions/{session_id}/live/start`
+  and `GET /api/v1/interview-sessions/{session_id}/live`
 
-Upload a resume or job description first, then index its stored chunks:
-
-```bash
-curl -X POST http://localhost:8000/api/v1/retrieval/documents/DOCUMENT_ID/index
-```
-
-The first indexing request creates the configured Pinecone serverless index when
-it does not already exist. Search can be scoped by interview session and document
-type:
-
-```bash
-curl -X POST http://localhost:8000/api/v1/retrieval/search \
-  -H "Content-Type: application/json" \
-  -d '{"query":"LangGraph production experience","document_types":["resume"],"top_k":5}'
-```
+The live workflow persists the ordered questions, current position, answers,
+follow-ups, skips and timestamps. It supports answer, skip, pause, resume and
+complete actions. Follow-ups are bounded by `LIVE_INTERVIEW_MAX_FOLLOW_UPS`.
 
 ## Validate
 
@@ -70,9 +60,5 @@ ruff check .
 ```
 
 Tests replace external providers with fakes, so they do not require credentials
-or make billable OpenAI or Pinecone calls.
-
-Question generation rejects unsupported or low-alignment candidates, performs one
-bounded rewrite attempt by default, and returns evidence references for every
-accepted question. RAGAS evaluation remains a later milestone. AWS EKS remains a
-deployment-stage milestone.
+or make billable OpenAI or Pinecone calls. RAGAS evaluation remains a later
+milestone. AWS EKS remains a deployment-stage milestone.
