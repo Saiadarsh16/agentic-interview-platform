@@ -17,7 +17,7 @@ RUBRIC_VERSION = "2026-07-v1"
 
 
 class FeedbackService:
-    def __init__(self, *, settings: Settings, llm: JsonLLM) -> None:
+    def __init__(self, *, settings: Settings, llm: JsonLLM | None = None) -> None:
         self.settings = settings
         self.llm = llm
 
@@ -118,7 +118,7 @@ class FeedbackService:
         question_type = str(question.question_metadata.get("question_type", "technical"))
         rubric_type = "behavioural" if question_type == "behavioural" else "technical"
         evidence = list(question.question_metadata.get("evidence", []))
-        result = await self.llm.complete(
+        result = await self._complete(
             system=(
                 "Evaluate one interview answer using only the supplied question, answer, role, "
                 "rubric and evidence. Return JSON with integer scores from 0-100 for correctness, "
@@ -166,7 +166,7 @@ class FeedbackService:
         rows: list[tuple[InterviewQuestion, InterviewAnswer]],
         evaluations: list[AnswerEvaluation],
     ) -> dict[str, Any]:
-        return await self.llm.complete(
+        return await self._complete(
             system=(
                 "Create a concise final interview coaching report from the supplied per-answer "
                 "evaluations. Return JSON with summary, strengths, improvement_areas and "
@@ -189,6 +189,13 @@ class FeedbackService:
                 ],
             },
         )
+
+    async def _complete(
+        self, *, system: str, payload: dict[str, Any]
+    ) -> dict[str, Any]:
+        if self.llm is None:
+            self.llm = OpenAIJsonLLM(self.settings)
+        return await self.llm.complete(system=system, payload=payload)
 
     async def _response(
         self, db: AsyncSession, report: InterviewFeedbackReport
@@ -262,4 +269,4 @@ class FeedbackService:
 
 def get_feedback_service() -> FeedbackService:
     settings = get_settings()
-    return FeedbackService(settings=settings, llm=OpenAIJsonLLM(settings))
+    return FeedbackService(settings=settings)
