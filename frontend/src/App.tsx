@@ -18,6 +18,12 @@ import {
 } from 'react'
 import './App.css'
 import {
+  apiErrorMessage,
+  interviewApi,
+  type InterviewFeedback,
+  type LiveInterviewState,
+} from './lib/api'
+import {
   Badge,
   Button,
   Card,
@@ -488,7 +494,7 @@ function NewInterviewPage() {
     extensions: string[],
   ) => {
     if (!file) return `${field} is required.`
-    if (file.size > 10 * 1024 * 1024) return `${field} must be smaller than 10 MB.`
+    if (file.size > 5 * 1024 * 1024) return `${field} must be smaller than 5 MB.`
     const extension = file.name.split('.').pop()?.toLowerCase() ?? ''
     if (!extensions.includes(extension)) {
       return `${field} must be a ${extensions.map((item) => item.toUpperCase()).join(', ')} file.`
@@ -499,10 +505,9 @@ function NewInterviewPage() {
   const validateContext = () => {
     const nextErrors: Record<string, string> = {}
     if (!role.trim()) nextErrors.role = 'Enter the role you are preparing for.'
-    const resumeError = validateFile(resume, 'Resume', ['pdf', 'doc', 'docx'])
+    const resumeError = validateFile(resume, 'Resume', ['pdf', 'docx'])
     const jdError = validateFile(jobDescription, 'Job description', [
       'pdf',
-      'doc',
       'docx',
       'txt',
     ])
@@ -541,12 +546,40 @@ function NewInterviewPage() {
   }
 
   const handlePrepare = () => {
+    if (!resume || !jobDescription) return
     setIsPreparing(true)
-    window.setTimeout(() => {
-      navigate(`/interviews/interview-${Date.now()}/live`, {
-        state: { company, role, round, duration, mode, difficulty, focusAreas },
-      })
-    }, 1400)
+    setErrors({})
+    void (async () => {
+      try {
+        const session = await interviewApi.createSession({
+          job_role: role.trim(),
+          company: company.trim() || null,
+          interview_type: round,
+          difficulty,
+          duration_minutes: Number(duration),
+        })
+        await Promise.all([
+          interviewApi.uploadDocument(session.id, 'resume', resume),
+          interviewApi.uploadDocument(
+            session.id,
+            'job_description',
+            jobDescription,
+          ),
+        ])
+        await interviewApi.start(
+          session.id,
+          Math.max(5, Math.min(12, Math.round(Number(duration) / 5))),
+          focusAreas,
+        )
+        navigate(`/interviews/${session.id}/live`, {
+          state: { company, role, round, duration, mode, difficulty, focusAreas },
+        })
+      } catch (error) {
+        setErrors({ prepare: apiErrorMessage(error) })
+      } finally {
+        setIsPreparing(false)
+      }
+    })()
   }
 
   return (
@@ -627,8 +660,8 @@ function NewInterviewPage() {
               </FormField>
             </div>
             <div className="mt-6 grid gap-4 sm:grid-cols-2">
-              <div><FileUpload id="resume" label="Resume" description="PDF or DOCX, up to 10 MB" accept=".pdf,.doc,.docx" file={resume} onFileChange={(file) => { setResume(file); setErrors((current) => ({ ...current, resume: '' })) }} />{errors.resume && <p className="mt-1.5 text-xs text-red-700">{errors.resume}</p>}</div>
-              <div><FileUpload id="job-description" label="Job description" description="PDF, DOCX, or TXT, up to 10 MB" accept=".pdf,.doc,.docx,.txt" file={jobDescription} onFileChange={(file) => { setJobDescription(file); setErrors((current) => ({ ...current, jobDescription: '' })) }} />{errors.jobDescription && <p className="mt-1.5 text-xs text-red-700">{errors.jobDescription}</p>}</div>
+              <div><FileUpload id="resume" label="Resume" description="PDF or DOCX, up to 5 MB" accept=".pdf,.docx" file={resume} onFileChange={(file) => { setResume(file); setErrors((current) => ({ ...current, resume: '' })) }} />{errors.resume && <p className="mt-1.5 text-xs text-red-700">{errors.resume}</p>}</div>
+              <div><FileUpload id="job-description" label="Job description" description="PDF, DOCX, or TXT, up to 5 MB" accept=".pdf,.docx,.txt" file={jobDescription} onFileChange={(file) => { setJobDescription(file); setErrors((current) => ({ ...current, jobDescription: '' })) }} />{errors.jobDescription && <p className="mt-1.5 text-xs text-red-700">{errors.jobDescription}</p>}</div>
             </div>
             <div className="mt-8 flex flex-col-reverse gap-3 border-t border-stone-200 pt-6 sm:flex-row sm:justify-end">
               <Button type="submit">Continue to preferences</Button>
@@ -706,6 +739,7 @@ function NewInterviewPage() {
                 <Button variant="ghost" disabled={isPreparing} onClick={() => setStep(2)}>Back</Button>
                 <Button loading={isPreparing} onClick={handlePrepare}>{isPreparing ? 'Preparing your interview' : 'Start mock interview'}</Button>
               </div>
+              {errors.prepare && <p className="mt-4 text-sm font-medium text-red-700" role="alert">{errors.prepare}</p>}
             </Card>
           )}
 
@@ -1410,68 +1444,115 @@ function LiveInterviewPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const context = (location.state ?? {}) as InterviewContext
-  const [questionIndex, setQuestionIndex] = useState(0)
-  const [answers, setAnswers] = useState<string[]>(() =>
-    Array(sampleQuestions.length).fill(''),
-  )
+  const [liveState, setLiveState] = useState<LiveInterviewState | null>(null)
+  const [answer, setAnswer] = useState('')
   const [secondsElapsed, setSecondsElapsed] = useState(0)
-  const [isPaused, setIsPaused] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [showCoachNote, setShowCoachNote] = useState(false)
   const [statusMessage, setStatusMessage] = useState('')
 
-  const currentQuestion = sampleQuestions[questionIndex]
-  const answeredCount = answers.filter((answer) => answer.trim()).length
+  const currentQuestion = liveState?.current_question
+  const isPaused = liveState?.status === 'paused'
   const role = context.role || 'Senior GenAI Engineer'
   const company = context.company?.trim()
   const totalMinutes = Number(context.duration) || 45
 
   useEffect(() => {
-    if (isPaused) return
+    let active = true
+    interviewApi
+      .getLiveState(interviewId)
+      .then((state) => active && setLiveState(state))
+      .catch((error) => active && setStatusMessage(apiErrorMessage(error)))
+      .finally(() => active && setIsLoading(false))
+    return () => {
+      active = false
+    }
+  }, [interviewId])
+
+  useEffect(() => {
+    if (isPaused || isLoading || liveState?.status === 'completed') return
     const timer = window.setInterval(
       () => setSecondsElapsed((seconds) => seconds + 1),
       1000,
     )
     return () => window.clearInterval(timer)
-  }, [isPaused])
+  }, [isLoading, isPaused, liveState?.status])
 
-  const updateAnswer = (answer: string) => {
-    setAnswers((current) =>
-      current.map((value, index) => (index === questionIndex ? answer : value)),
-    )
-    setStatusMessage('')
-  }
-
-  const goToQuestion = (index: number) => {
-    setQuestionIndex(index)
-    setShowCoachNote(false)
-    setStatusMessage('')
-    window.scrollTo({ top: 0, behavior: 'smooth' })
-  }
-
-  const handleNext = () => {
-    if (!answers[questionIndex].trim()) {
+  const handleNext = async () => {
+    if (!currentQuestion || !answer.trim()) {
       setStatusMessage('Add an answer before continuing, or use Skip for now.')
       return
     }
-    if (questionIndex < sampleQuestions.length - 1) {
-      goToQuestion(questionIndex + 1)
-    } else {
-      navigate(`/interviews/${interviewId}/feedback`, {
-        state: { ...context, answers, elapsedSeconds: secondsElapsed },
-      })
+    setIsSubmitting(true)
+    setStatusMessage('')
+    try {
+      const state = await interviewApi.answer(interviewId, currentQuestion.id, answer.trim())
+      setLiveState(state)
+      setAnswer('')
+      setShowCoachNote(false)
+      if (state.status === 'completed') {
+        navigate(`/interviews/${interviewId}/feedback`, {
+          state: { ...context, elapsedSeconds: secondsElapsed },
+        })
+      }
+    } catch (error) {
+      setStatusMessage(apiErrorMessage(error))
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
-  const handleEndInterview = () => {
+  const handleSkip = async () => {
+    if (!currentQuestion) return
+    setIsSubmitting(true)
+    try {
+      const state = await interviewApi.skip(interviewId, currentQuestion.id)
+      setLiveState(state)
+      setAnswer('')
+      if (state.status === 'completed') {
+        navigate(`/interviews/${interviewId}/feedback`, {
+          state: { ...context, elapsedSeconds: secondsElapsed },
+        })
+      }
+    } catch (error) {
+      setStatusMessage(apiErrorMessage(error))
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const togglePause = async () => {
+    try {
+      setLiveState(await interviewApi.action(interviewId, isPaused ? 'resume' : 'pause'))
+    } catch (error) {
+      setStatusMessage(apiErrorMessage(error))
+    }
+  }
+
+  const handleEndInterview = async () => {
     if (
       window.confirm(
         'End this practice interview and continue to your feedback summary?',
       )
     ) {
-      navigate(`/interviews/${interviewId}/feedback`, {
-        state: { ...context, answers, elapsedSeconds: secondsElapsed },
-      })
+      try {
+        await interviewApi.action(interviewId, 'complete')
+        navigate(`/interviews/${interviewId}/feedback`, {
+          state: { ...context, elapsedSeconds: secondsElapsed },
+        })
+      } catch (error) {
+        setStatusMessage(apiErrorMessage(error))
+      }
     }
+  }
+
+  if (isLoading) {
+    return <main className="page-shell py-20"><Card><div className="flex items-center gap-3"><Spinner /><p>Restoring your interview…</p></div></Card></main>
+  }
+
+  if (!liveState || !currentQuestion) {
+    return <main className="page-shell py-20"><EmptyState title="Interview unavailable" description={statusMessage || 'No active question was found for this session.'} /></main>
   }
 
   return (
@@ -1506,7 +1587,7 @@ function LiveInterviewPage() {
             </div>
             <Button
               variant="outline"
-              onClick={() => setIsPaused((paused) => !paused)}
+              onClick={togglePause}
             >
               {isPaused ? 'Resume' : 'Pause'}
             </Button>
@@ -1533,10 +1614,10 @@ function LiveInterviewPage() {
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-stone-200 pb-5">
               <div>
                 <p className="text-xs font-bold uppercase tracking-[0.18em] text-orange-700">
-                  Question {questionIndex + 1} of {sampleQuestions.length}
+                  Question {liveState.answered_count + liveState.skipped_count + 1} of {liveState.total_questions}
                 </p>
                 <p className="mt-1 text-sm text-stone-500">
-                  {currentQuestion.category}
+                  {currentQuestion.competency}
                 </p>
               </div>
               <Badge variant="accent">
@@ -1558,7 +1639,7 @@ function LiveInterviewPage() {
             </button>
             {showCoachNote && (
               <div className="mt-3 rounded-xl border border-orange-200 bg-orange-50 p-4 text-sm leading-6 text-orange-950">
-                {currentQuestion.guidance}
+                Use Context → Decision → Technical execution → Trade-offs → Measurable result.
               </div>
             )}
 
@@ -1571,15 +1652,15 @@ function LiveInterviewPage() {
                 <Textarea
                   id="live-answer"
                   rows={10}
-                  value={answers[questionIndex]}
+                  value={answer}
                   disabled={isPaused}
-                  onChange={(event) => updateAnswer(event.target.value)}
+                  onChange={(event) => { setAnswer(event.target.value); setStatusMessage('') }}
                   placeholder="Start with the context and your decision, then explain the technical execution, trade-offs and measurable outcome..."
                 />
               </FormField>
               <div className="mt-2 flex items-center justify-between text-xs text-stone-500">
-                <span>{answers[questionIndex].trim().split(/\s+/).filter(Boolean).length} words</span>
-                <span>Draft saved in this session</span>
+                <span>{answer.trim().split(/\s+/).filter(Boolean).length} words</span>
+                <span>Saved when submitted</span>
               </div>
               {statusMessage && (
                 <p className="mt-3 text-sm font-medium text-red-700" role="alert">
@@ -1589,26 +1670,11 @@ function LiveInterviewPage() {
             </div>
 
             <div className="mt-7 flex flex-col-reverse gap-3 border-t border-stone-200 pt-6 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex gap-2">
-                <Button
-                  variant="ghost"
-                  disabled={questionIndex === 0}
-                  onClick={() => goToQuestion(questionIndex - 1)}
-                >
-                  Previous
-                </Button>
-                <Button
-                  variant="ghost"
-                  disabled={questionIndex === sampleQuestions.length - 1}
-                  onClick={() => goToQuestion(questionIndex + 1)}
-                >
-                  Skip for now
-                </Button>
-              </div>
-              <Button disabled={isPaused} onClick={handleNext}>
-                {questionIndex === sampleQuestions.length - 1
-                  ? 'Finish interview'
-                  : 'Submit & continue'}
+              <Button variant="ghost" disabled={isPaused || isSubmitting} onClick={handleSkip}>
+                Skip question
+              </Button>
+              <Button loading={isSubmitting} disabled={isPaused} onClick={handleNext}>
+                Submit & continue
               </Button>
             </div>
           </Card>
@@ -1617,21 +1683,17 @@ function LiveInterviewPage() {
         <aside className="space-y-5">
           <Card title="Interview progress" compact>
             <Progress
-              value={Math.round(
-                ((questionIndex + 1) / sampleQuestions.length) * 100,
-              )}
-              label={`${answeredCount} of ${sampleQuestions.length} answered`}
+              value={liveState.progress_percent}
+              label={`${liveState.answered_count} of ${liveState.total_questions} answered`}
             />
             <ol className="mt-5 space-y-2" aria-label="Interview questions">
-              {sampleQuestions.map((question, index) => {
-                const active = index === questionIndex
-                const answered = Boolean(answers[index].trim())
+              {liveState.questions.map((question, index) => {
+                const active = question.id === currentQuestion.id
+                const answered = question.status === 'answered'
                 return (
-                  <li key={question.category}>
-                    <button
-                      type="button"
-                      onClick={() => goToQuestion(index)}
-                      className={`flex w-full items-center gap-3 rounded-xl border px-3 py-3 text-left text-sm transition-colors ${
+                  <li key={question.id}>
+                    <div
+                      className={`flex w-full items-center gap-3 rounded-xl border px-3 py-3 text-left text-sm ${
                         active
                           ? 'border-orange-300 bg-orange-50 text-orange-950'
                           : 'border-transparent text-stone-600 hover:border-stone-200 hover:bg-stone-50'
@@ -1649,8 +1711,8 @@ function LiveInterviewPage() {
                       >
                         {answered ? '✓' : index + 1}
                       </span>
-                      <span className="line-clamp-2">{question.category}</span>
-                    </button>
+                      <span className="line-clamp-2">{question.competency}</span>
+                    </div>
                   </li>
                 )
               })}
@@ -1685,9 +1747,7 @@ function LiveInterviewPage() {
           </Card>
 
           <p className="px-1 text-xs leading-5 text-stone-500">
-            This milestone uses sample questions and keeps responses in your
-            browser session. Adaptive AI follow-ups, voice capture and server
-            persistence will be connected in a later backend milestone.
+            Questions, answers, follow-ups and progress are saved to your interview session.
           </p>
         </aside>
       </div>
@@ -1721,20 +1781,47 @@ function FeedbackReportPage() {
   const location = useLocation()
   const context = (location.state ?? {}) as FeedbackContext
   const [expandedAnswer, setExpandedAnswer] = useState(0)
+  const [feedback, setFeedback] = useState<InterviewFeedback | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
+
+  useEffect(() => {
+    let active = true
+    interviewApi
+      .generateFeedback(interviewId)
+      .then((result) => active && setFeedback(result))
+      .catch((error) => active && setLoadError(apiErrorMessage(error)))
+      .finally(() => active && setIsLoading(false))
+    return () => {
+      active = false
+    }
+  }, [interviewId])
 
   const answers = sampleQuestions.map((_, index) => context.answers?.[index] ?? '')
-  const answeredCount = answers.filter((answer) => answer.trim()).length
+  const answeredCount = feedback?.answered_questions ?? answers.filter((answer) => answer.trim()).length
   const wordCount = answers.reduce(
     (total, answer) => total + answer.trim().split(/\s+/).filter(Boolean).length,
     0,
   )
   const completenessScore = Math.round((answeredCount / sampleQuestions.length) * 100)
+  const competencyScores = feedback
+    ? Object.entries(feedback.competency_scores)
+    : [...scoreLabels]
   const overallScore = Math.round(
-    scoreLabels.reduce((total, [, score]) => total + score, 0) / scoreLabels.length,
+    feedback?.overall_score
+      ?? scoreLabels.reduce((total, [, score]) => total + score, 0) / scoreLabels.length,
   )
   const role = context.role || 'Senior GenAI Engineer'
   const company = context.company?.trim()
   const elapsedSeconds = context.elapsedSeconds ?? 0
+
+  if (isLoading) {
+    return <main className="page-shell py-20"><Card><div className="flex items-center gap-3"><Spinner /><p>Evaluating your interview…</p></div></Card></main>
+  }
+
+  if (!feedback) {
+    return <main className="page-shell py-20"><EmptyState title="Feedback unavailable" description={loadError || 'Complete the interview before generating feedback.'} /></main>
+  }
 
   return (
     <main className="min-h-[calc(100vh-4.5rem)] bg-stone-100/70">
@@ -1774,7 +1861,7 @@ function FeedbackReportPage() {
       <div className="page-shell space-y-8 py-8 sm:py-12">
         <section className="grid gap-4 sm:grid-cols-3" aria-label="Session summary">
           {[
-            ['Answered', answeredCount + '/' + sampleQuestions.length],
+            ['Answered', answeredCount + '/' + (answeredCount + feedback.skipped_questions)],
             ['Total words', String(wordCount)],
             ['Practice time', formatTime(elapsedSeconds)],
           ].map(([label, value]) => (
@@ -1788,24 +1875,19 @@ function FeedbackReportPage() {
         <section className="grid gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(18rem,0.8fr)]">
           <Card title="Competency breakdown" description="A clear view of the signals demonstrated across this practice session.">
             <div className="space-y-6">
-              {scoreLabels.map(([label, score]) => (
+              {competencyScores.map(([label, score]) => (
                 <Progress key={label} value={score} label={label + ' · ' + score + '%'} />
               ))}
             </div>
-            <p className="mt-6 rounded-xl bg-amber-50 p-4 text-sm leading-6 text-amber-950">
-              These are illustrative frontend scores based on the current sample session.
-              Model-based evaluation and evidence scoring will be connected through the backend later.
+            <p className="mt-6 rounded-xl bg-orange-50 p-4 text-sm leading-6 text-orange-950">
+              {feedback.summary}
             </p>
           </Card>
 
           <div className="space-y-6">
             <Card title="What worked" compact>
               <ul className="space-y-4 text-sm leading-6 text-stone-700">
-                {[
-                  'You organise technical answers around the business problem.',
-                  'Your responses show strong production and risk awareness.',
-                  'You communicate trade-offs instead of listing tools alone.',
-                ].map((item) => (
+                {feedback.strengths.map((item) => (
                   <li key={item} className="flex gap-3">
                     <span className="mt-1 grid size-5 shrink-0 place-items-center rounded-full bg-emerald-100 text-xs font-bold text-emerald-800">✓</span>
                     {item}
@@ -1815,8 +1897,7 @@ function FeedbackReportPage() {
             </Card>
             <Card title="Priority improvement" compact>
               <p className="text-sm leading-6 text-stone-700">
-                Strengthen every answer with one measurable outcome and one explicit
-                decision trade-off. This will make your experience sound more senior and credible.
+                {feedback.improvement_areas[0] || 'Continue practising focused, evidence-backed answers.'}
               </p>
               <div className="mt-5">
                 <Progress value={completenessScore} label="Response completeness" />
@@ -1889,14 +1970,10 @@ function FeedbackReportPage() {
         <section className="grid gap-6 lg:grid-cols-[1fr_auto] lg:items-center">
           <Card title="Your next practice plan" description="A focused sequence for turning this feedback into stronger interview performance.">
             <ol className="grid gap-4 sm:grid-cols-3">
-              {[
-                ['01', 'Add measurable outcomes', 'Revise two answers with scale, latency, quality or business-impact metrics.'],
-                ['02', 'Practise concise structure', 'Use Context → Decision → Execution → Result and stay under two minutes.'],
-                ['03', 'Repeat under pressure', 'Run another adaptive session and compare the competency scores.'],
-              ].map(([number, title, copy]) => (
-                <li key={number} className="rounded-xl border border-stone-200 bg-stone-50 p-4">
-                  <span className="font-serif text-sm font-semibold text-orange-700">{number}</span>
-                  <p className="mt-3 font-semibold text-stone-950">{title}</p>
+              {feedback.next_steps.slice(0, 3).map((copy, index) => (
+                <li key={copy} className="rounded-xl border border-stone-200 bg-stone-50 p-4">
+                  <span className="font-serif text-sm font-semibold text-orange-700">{String(index + 1).padStart(2, '0')}</span>
+                  <p className="mt-3 font-semibold text-stone-950">Next coaching step</p>
                   <p className="mt-2 text-sm leading-6 text-stone-600">{copy}</p>
                 </li>
               ))}

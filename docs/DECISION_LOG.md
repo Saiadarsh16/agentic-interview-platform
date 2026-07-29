@@ -247,3 +247,17 @@ Each answer retains correctness, relevance, depth, clarity, grounding, strengths
 ### Consequences and trade-offs
 
 Evaluation requires one structured model call per answered question plus one report-synthesis call, which adds latency and API cost after an interview. Reports are therefore generated only after completion, persisted in PostgreSQL, and returned idempotently unless explicit regeneration is requested. Provider-free tests use a fake evaluator and never consume API credits.
+# 2026-07-29 — Frontend integration boundary
+
+- The React client uses one typed API module with `VITE_API_BASE_URL`; provider
+  credentials remain exclusively in the backend.
+- Interview setup is transactional from the user's perspective: create the
+  session, upload both documents, and start the live workflow before navigating
+  to the interview.
+- Live-interview navigation is driven by persisted backend state. Refreshing the
+  page restores the active question instead of advancing or duplicating it.
+- Answers are persisted only on submission. Pause, resume, skip and complete
+  actions use the backend state machine and surface safe API errors in the UI.
+- Feedback is generated once through the versioned evaluation service and the
+  UI renders its real overall and competency scores, strengths, improvement
+  areas and next steps.

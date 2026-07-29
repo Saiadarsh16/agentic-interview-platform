@@ -30,3 +30,10 @@ If you are developing a production application, we recommend enabling type-aware
 ```
 
 See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+# Backend connection
+
+Copy `.env.example` to `.env` and set `VITE_API_BASE_URL` when the FastAPI
+service is not available at `http://localhost:8000/api/v1`.
+
+The browser never receives OpenAI or Pinecone credentials. Those remain in the
+backend environment.
