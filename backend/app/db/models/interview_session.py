@@ -11,6 +11,7 @@ from app.db.session import Base
 class InterviewStatus(StrEnum):
     planned = "planned"
     in_progress = "in_progress"
+    paused = "paused"
     completed = "completed"
 
 
@@ -24,12 +25,10 @@ class InterviewSession(Base):
     difficulty: Mapped[str] = mapped_column(String(40))
     duration_minutes: Mapped[int] = mapped_column(Integer)
     status: Mapped[InterviewStatus] = mapped_column(
-        Enum(InterviewStatus, name="interview_status"),
-        default=InterviewStatus.planned,
+        Enum(InterviewStatus, name="interview_status"), default=InterviewStatus.planned
     )
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        default=lambda: datetime.now(UTC),
+        DateTime(timezone=True), default=lambda: datetime.now(UTC)
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
