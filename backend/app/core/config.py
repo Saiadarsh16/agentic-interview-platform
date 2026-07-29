@@ -40,6 +40,7 @@ class Settings(BaseSettings):
     question_generation_top_k: int = 8
     question_generation_max_retries: int = 1
     question_acceptance_score: int = 80
+    live_interview_max_follow_ups: int = 1
 
     @property
     def docs_enabled(self) -> bool:
