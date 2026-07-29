@@ -2,6 +2,7 @@ from fastapi import APIRouter
 
 from app.api.routes import (
     documents,
+    feedback,
     health,
     interview_sessions,
     live_interview,
@@ -27,4 +28,9 @@ api_router.include_router(
     live_interview.router,
     prefix="/interview-sessions",
     tags=["live interview"],
+)
+api_router.include_router(
+    feedback.router,
+    prefix="/interview-sessions",
+    tags=["interview feedback"],
 )
