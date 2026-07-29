@@ -46,7 +46,23 @@ class RetrievalService:
 
     async def _index(self) -> Any:
         names = await asyncio.to_thread(self.pinecone.list_indexes)
-        if self.settings.pinecone_index_name not in names.names():
+        if self.settings.pinecone_index_name in names.names():
+            description = await asyncio.to_thread(
+                self.pinecone.describe_index,
+                name=self.settings.pinecone_index_name,
+            )
+            if (
+                description.dimension != self.settings.embedding_dimension
+                or description.metric != "cosine"
+            ):
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail=(
+                        "The Pinecone index configuration does not match the "
+                        "embedding dimension and cosine metric."
+                    ),
+                )
+        else:
             await asyncio.to_thread(
                 self.pinecone.create_index,
                 name=self.settings.pinecone_index_name,
