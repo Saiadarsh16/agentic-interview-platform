@@ -29,11 +29,13 @@ class Settings(BaseSettings):
     openai_api_key: SecretStr | None = None
     openai_embedding_model: str = "text-embedding-3-small"
     embedding_dimension: int = 1536
+    embedding_batch_size: int = 100
     pinecone_api_key: SecretStr | None = None
     pinecone_index_name: str = "agentic-interview-platform"
     pinecone_namespace: str = "interview-documents"
     pinecone_cloud: str = "aws"
     pinecone_region: str = "us-east-1"
+    pinecone_upsert_batch_size: int = 100
 
     @property
     def docs_enabled(self) -> bool:
