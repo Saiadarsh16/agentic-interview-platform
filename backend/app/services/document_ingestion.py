@@ -65,7 +65,7 @@ def _extract_text(content: bytes, extension: str) -> tuple[str, dict]:
 
 def _section_at(text: str, position: int) -> str | None:
     section = None
-    for line in text[:position].splitlines():
+    for line in text[: position + 120].splitlines():
         if HEADING_PATTERN.fullmatch(line.strip()):
             section = line.strip().rstrip(":").title()
     return section
