@@ -1,7 +1,7 @@
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import AnyHttpUrl
+from pydantic import AnyHttpUrl, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -25,6 +25,15 @@ class Settings(BaseSettings):
     document_max_bytes: int = 5 * 1024 * 1024
     document_chunk_size: int = 2000
     document_chunk_overlap: int = 200
+
+    openai_api_key: SecretStr | None = None
+    openai_embedding_model: str = "text-embedding-3-small"
+    embedding_dimension: int = 1536
+    pinecone_api_key: SecretStr | None = None
+    pinecone_index_name: str = "agentic-interview-platform"
+    pinecone_namespace: str = "interview-documents"
+    pinecone_cloud: str = "aws"
+    pinecone_region: str = "us-east-1"
 
     @property
     def docs_enabled(self) -> bool:
