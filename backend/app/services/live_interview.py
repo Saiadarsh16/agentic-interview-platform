@@ -143,7 +143,10 @@ class LiveInterviewService:
         question.status = LiveQuestionStatus.answered
         question.answered_at = datetime.now(UTC)
 
-        if question.follow_up_count < self.settings.live_interview_max_follow_ups:
+        if (
+            question.kind == LiveQuestionKind.primary
+            and question.follow_up_count < self.settings.live_interview_max_follow_ups
+        ):
             follow_up = await self._generate_follow_up(interview, question, answer)
             if follow_up is not None:
                 await db.execute(
