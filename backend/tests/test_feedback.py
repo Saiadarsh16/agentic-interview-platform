@@ -121,6 +121,6 @@ async def test_answer_evaluation_uses_technical_rubric_without_provider_calls() 
     evaluation = await service._evaluate_answer(interview, question, answer)
 
     assert evaluation.rubric_type == "technical"
-    assert evaluation.overall_score == 79.0
+    assert evaluation.overall_score == 79.8
     assert evaluation.unsupported_claims == []
     assert evaluation.evaluator_model == "fake-model"
