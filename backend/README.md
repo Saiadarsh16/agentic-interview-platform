@@ -2,8 +2,9 @@
 
 This service is the API foundation for the Agentic Interview Platform. The
 current milestone includes PostgreSQL persistence, Redis connectivity, document
-ingestion, OpenAI embeddings, Pinecone indexing, and semantic retrieval over
-resume and job-description chunks.
+ingestion, OpenAI embeddings, Pinecone indexing, semantic retrieval, and
+LangGraph-based personalised question generation over resume and job-description
+evidence.
 
 ## Requirements
 
@@ -42,6 +43,8 @@ Open:
 - Interview sessions: <http://localhost:8000/api/v1/interview-sessions>
 - Documents: <http://localhost:8000/api/v1/documents>
 - Retrieval: <http://localhost:8000/api/v1/retrieval/search>
+- Question generation:
+  `POST /api/v1/interview-sessions/{session_id}/questions/generate`
 
 Upload a resume or job description first, then index its stored chunks:
 
@@ -69,5 +72,7 @@ ruff check .
 Tests replace external providers with fakes, so they do not require credentials
 or make billable OpenAI or Pinecone calls.
 
-LangGraph question generation and RAGAS evaluation remain later milestones. AWS
-EKS remains a deployment-stage milestone.
+Question generation rejects unsupported or low-alignment candidates, performs one
+bounded rewrite attempt by default, and returns evidence references for every
+accepted question. RAGAS evaluation remains a later milestone. AWS EKS remains a
+deployment-stage milestone.
