@@ -2,8 +2,8 @@
 
 This service is the API foundation for the Agentic Interview Platform. It includes
 PostgreSQL persistence, Redis connectivity, document ingestion, OpenAI embeddings,
-Pinecone retrieval, grounded LangGraph question generation, and a persistent live
-interview workflow.
+Pinecone retrieval, grounded LangGraph question generation, a persistent live
+interview workflow, and evidence-grounded answer evaluation with coaching reports.
 
 ## Requirements
 
@@ -47,10 +47,18 @@ Open:
 - Live interview:
   `POST /api/v1/interview-sessions/{session_id}/live/start`
   and `GET /api/v1/interview-sessions/{session_id}/live`
+- Feedback:
+  `POST /api/v1/interview-sessions/{session_id}/feedback/generate`
+  and `GET /api/v1/interview-sessions/{session_id}/feedback`
 
 The live workflow persists the ordered questions, current position, answers,
 follow-ups, skips and timestamps. It supports answer, skip, pause, resume and
 complete actions. Follow-ups are bounded by `LIVE_INTERVIEW_MAX_FOLLOW_UPS`.
+
+Final feedback uses separate technical and behavioural rubrics and persists
+per-answer dimensions, competency scores, strengths, gaps, unsupported claims,
+improved answers and next steps. Generating the same report is idempotent unless
+explicit regeneration is requested.
 
 ## Validate
 
