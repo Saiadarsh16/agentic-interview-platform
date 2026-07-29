@@ -46,11 +46,11 @@ Open:
   `POST /api/v1/interview-sessions/{session_id}/questions/generate`
 - Live interview:
   `POST /api/v1/interview-sessions/{session_id}/live/start`
-  and `GET /api/v1/interview-sessions/{session_id}/live`
+  and `GET /api/v1/interview-sessions/{session_id}/live`\n- Feedback:\n  `POST /api/v1/interview-sessions/{session_id}/feedback/generate`\n  and `GET /api/v1/interview-sessions/{session_id}/feedback`
 
 The live workflow persists the ordered questions, current position, answers,
 follow-ups, skips and timestamps. It supports answer, skip, pause, resume and
-complete actions. Follow-ups are bounded by `LIVE_INTERVIEW_MAX_FOLLOW_UPS`.
+complete actions. Follow-ups are bounded by `LIVE_INTERVIEW_MAX_FOLLOW_UPS`. Final feedback\nuses separate technical and behavioural rubrics and persists per-answer dimensions,\ncompetency scores, strengths, gaps, unsupported claims, improved answers and next steps.
 
 ## Validate
 
