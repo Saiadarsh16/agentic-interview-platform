@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from app.api.routes import documents, health, interview_sessions, retrieval
+from app.api.routes import documents, health, interview_sessions, question_generation, retrieval
 
 api_router = APIRouter()
 api_router.include_router(health.router, prefix="/health", tags=["health"])
@@ -11,3 +11,8 @@ api_router.include_router(
 )
 api_router.include_router(documents.router, prefix="/documents", tags=["documents"])
 api_router.include_router(retrieval.router, prefix="/retrieval", tags=["retrieval"])
+api_router.include_router(
+    question_generation.router,
+    prefix="/interview-sessions",
+    tags=["question generation"],
+)
